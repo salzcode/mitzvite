@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f7f2e8; color: #333; font: 16px/1.5 Georgia, 'Times New Roman', serif; }
+    .wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px 48px; }
+    .card { background: #fff; border: 1px solid #eadfca; border-radius: 10px; padding: 24px 20px; }
+    .kicker { text-align: center; letter-spacing: 3px; color: #b08d3c; font-size: 12px; text-transform: uppercase; }
+    h1 { text-align: center; font-weight: normal; color: #1f2a44; font-size: 30px; margin: 4px 0 16px; }
+    .lead { text-align: center; margin: 0 0 8px; }
+    .muted { color: #777; font-size: 14px; text-align: center; }
+    .banner { background: #fff4d6; border: 1px solid #e8c873; border-radius: 6px; padding: 10px 12px; font: 14px Arial, sans-serif; margin-bottom: 14px; }
+    .event { border-top: 1px solid #eadfca; padding: 18px 0 6px; }
+    .event h2 { margin: 0; font-size: 19px; color: #1f2a44; }
+    .event .info { color: #555; font-size: 14px; }
+    .choices { display: flex; gap: 10px; margin: 12px 0 6px; }
+    .choices label { flex: 1; border: 2px solid #d8ccb4; border-radius: 8px; padding: 11px 8px; text-align: center; cursor: pointer;
+                     font: 15px Arial, sans-serif; user-select: none; }
+    .choices input { position: absolute; opacity: 0; pointer-events: none; }
+    .choices label.on-yes { border-color: #2e7d32; background: #edf7ee; color: #1b5e20; font-weight: bold; }
+    .choices label.on-no { border-color: #9e3b3b; background: #fbeeee; color: #7f2a2a; font-weight: bold; }
+    .count { display: none; align-items: center; gap: 10px; font: 15px Arial, sans-serif; margin: 8px 0 4px; }
+    .count.show { display: flex; }
+    select, textarea { font: 16px Arial, sans-serif; border: 1px solid #ccc; border-radius: 6px; padding: 8px; }
+    textarea { width: 100%; min-height: 80px; margin-top: 6px; }
+    .note { border-top: 1px solid #eadfca; padding-top: 18px; margin-top: 12px; font: 15px Arial, sans-serif; }
+    button { width: 100%; margin-top: 20px; padding: 14px; font: bold 17px Arial, sans-serif; color: #fff; background: #1f2a44;
+             border: 0; border-radius: 8px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: default; }
+    .err { color: #9e3b3b; font: 14px Arial, sans-serif; margin-top: 12px; text-align: center; min-height: 1em; }
+    .done { text-align: center; }
+    .done .big { font-size: 22px; color: #1f2a44; margin: 8px 0; }
+    .summary { text-align: left; font: 15px Arial, sans-serif; margin: 16px auto; max-width: 360px; }
+    .summary div { padding: 6px 0; border-bottom: 1px solid #f0e8d8; }
+    .link { background: none; color: #1f2a44; text-decoration: underline; font-weight: normal; width: auto; padding: 4px; }
+  </style>
+</head>
+<body>
+<div class="wrap"><div class="card" id="app"></div></div>
+
+<script>
+  var M = <?!= modelJson ?>;
+  var app = document.getElementById('app');
+
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function header() {
+    return '<div class="kicker">Bar Mitzvah</div><h1>' + esc(M.child) + '</h1>';
+  }
+
+  function renderForm() {
+    if (!M.found) {
+      app.innerHTML = header() + '<p class="lead">We couldn\'t find your invitation.</p>' +
+        '<p class="muted">Please open the RSVP button from your invitation email again, or contact ' + esc(M.hosts) + '.</p>';
+      return;
+    }
+    var h = header();
+    if (M.preview) h += '<div class="banner"><b>Preview</b> — this is what ' + esc(M.family) + ' will see. Answers here are not saved.</div>';
+    h += '<p class="lead">' + esc(M.greeting) + ',</p>';
+    h += '<p class="muted">' + (M.replied ? 'You already replied — you can change your answers below.' :
+         'Please let us know which events you can join' + (M.deadline ? ', by ' + esc(M.deadline) : '') + '.') + '</p>';
+
+    M.events.forEach(function (ev, i) {
+      var a = M.answers[i] || {};
+      h += '<div class="event"><h2>' + esc(ev.name) + '</h2><div class="info">' +
+        [ev.when, ev.where, ev.details].filter(Boolean).map(esc).join('<br>') + '</div>' +
+        '<div class="choices">' +
+        '<label id="y' + i + '"><input type="radio" name="a' + i + '" value="yes">Joyfully accept</label>' +
+        '<label id="n' + i + '"><input type="radio" name="a' + i + '" value="no">Regretfully decline</label>' +
+        '</div><div class="count" id="c' + i + '">How many of you will attend? <select id="s' + i + '">';
+      for (var n = 1; n <= M.max; n++) {
+        var sel = a.attending ? a.count === n : n === M.max;
+        h += '<option' + (sel ? ' selected' : '') + '>' + n + '</option>';
+      }
+      h += '</select></div></div>';
+    });
+    h += '<div class="note">A note for the family (optional)<textarea id="msg" maxlength="2000"></textarea></div>' +
+      '<button id="send">' + (M.replied ? 'Update my RSVP' : 'Send my RSVP') + '</button><div class="err" id="err"></div>';
+    app.innerHTML = h;
+    document.getElementById('msg').value = M.message || '';
+
+    M.events.forEach(function (ev, i) {
+      var a = M.answers[i] || {};
+      if (a.attending === true) pick(i, 'yes');
+      if (a.attending === false) pick(i, 'no');
+      document.getElementsByName('a' + i).forEach(function (r) {
+        r.addEventListener('change', function () { pick(i, r.value); });
+      });
+    });
+    document.getElementById('send').addEventListener('click', submit);
+  }
+
+  function pick(i, v) {
+    document.querySelector('input[name="a' + i + '"][value="' + v + '"]').checked = true;
+    document.getElementById('y' + i).className = v === 'yes' ? 'on-yes' : '';
+    document.getElementById('n' + i).className = v === 'no' ? 'on-no' : '';
+    document.getElementById('c' + i).className = 'count' + (v === 'yes' ? ' show' : '');
+  }
+
+  function submit() {
+    var err = document.getElementById('err');
+    var answers = [];
+    for (var i = 0; i < M.events.length; i++) {
+      var r = document.querySelector('input[name="a' + i + '"]:checked');
+      if (!r) { err.textContent = 'Please answer for "' + M.events[i].name + '".'; return; }
+      answers.push({ attending: r.value === 'yes', count: r.value === 'yes' ? parseInt(document.getElementById('s' + i).value, 10) : 0 });
+    }
+    var msg = document.getElementById('msg').value;
+    if (M.preview) { M.answers = answers; M.message = msg; renderDone(true); return; }
+    var btn = document.getElementById('send');
+    btn.disabled = true; btn.textContent = 'Sending…'; err.textContent = '';
+    google.script.run
+      .withSuccessHandler(function () { M.answers = answers; M.message = msg; M.replied = true; renderDone(false); })
+      .withFailureHandler(function (e) {
+        btn.disabled = false; btn.textContent = 'Try again';
+        err.textContent = (e && e.message) || 'Something went wrong — please try again.';
+      })
+      .submitRsvp(M.token, answers, msg);
+  }
+
+  function renderDone(preview) {
+    var any = M.answers.some(function (a) { return a.attending; });
+    var h = header() + '<div class="done">';
+    if (preview) h += '<div class="banner">Preview — nothing was saved.</div>';
+    h += '<div class="big">' + (any ? 'Thank you — we can\'t wait to celebrate with you!' : 'Thank you for letting us know. You\'ll be missed!') + '</div>';
+    h += '<div class="summary">' + M.events.map(function (ev, i) {
+      var a = M.answers[i];
+      return '<div><b>' + esc(ev.name) + '</b><br>' + (a.attending ? 'Yes — ' + a.count + (a.count === 1 ? ' guest' : ' guests') : 'Not attending') + '</div>';
+    }).join('') + '</div>';
+    h += '<p class="muted">You can come back to this page with the same link to change your answers.</p>' +
+      '<button class="link" id="again">Change my answers</button></div>';
+    app.innerHTML = h;
+    document.getElementById('again').addEventListener('click', renderForm);
+  }
+
+  renderForm();
+</script>
+</body>
+</html>
