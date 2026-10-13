@@ -64,9 +64,9 @@ var SETTINGS_SPEC = [
 ];
 
 var DEFAULT_EVENTS = [
-  ['E1', 'Friday Night Dinner', 'Friday, March 5, 2027 · 7:00 PM', 'Our home', ''],
-  ['E2', 'Shabbat Morning Service', 'Saturday, March 6, 2027 · 9:30 AM', 'Temple Beth Shalom, 123 Main St', 'Kiddush lunch to follow.'],
-  ['E3', 'Celebration Party', 'Saturday, March 6, 2027 · 7:00 PM', 'The Grand Ballroom, 456 Oak Ave', 'Dinner, dancing and dessert.']
+  ['E1', 'Friday Night', 'Friday, March 5, 2027 · 7:00 PM', 'Our home', ''],
+  ['E2', 'Saturday Morning', 'Saturday, March 6, 2027 · 9:30 AM', 'Temple Beth Shalom, 123 Main St', 'Kiddush lunch to follow.'],
+  ['E3', 'Saturday Night', 'Saturday, March 6, 2027 · 7:00 PM', 'The Grand Ballroom, 456 Oak Ave', 'Dinner, dancing and dessert.']
 ];
 
 /* ------------------------------------------------------------------ menu */
@@ -364,15 +364,15 @@ function buildEmail_(kind, guest, s, events, url, imgSrc) {
 
   var text = intro + '\n\n';
   var rows = '';
-  mine.forEach(function (ev) {
+  mine.forEach(function (ev, n) {
     var reply = '';
     if (kind === 'confirm') {
       var a = guest.answers[ev.id];
       reply = !a ? 'No answer' : a.attending ? 'Yes, ' + a.count + (a.count === 1 ? ' guest' : ' guests') : 'Unable to attend';
     }
-    text += '• ' + ev.name + (reply ? ' — ' + reply : '') + '\n  ' + [ev.when, ev.where, ev.details].filter(String).join('\n  ') + '\n\n';
+    text += (n + 1) + '. ' + ev.name + (reply ? ' — ' + reply : '') + '\n  ' + [ev.when, ev.where, ev.details].filter(String).join('\n  ') + '\n\n';
     rows += '<tr><td style="padding:14px 18px;border-top:1px solid #eadfca">' +
-      '<div style="font-size:17px;font-weight:bold;color:#1f2a44">' + esc_(ev.name) + '</div>' +
+      '<div style="font-size:17px;font-weight:bold;color:#1f2a44"><span style="display:inline-block;width:24px;height:24px;line-height:24px;border-radius:12px;background:#1f2a44;color:#fff;text-align:center;font:bold 13px Arial,sans-serif;margin-right:8px;vertical-align:2px">' + (n + 1) + '</span>' + esc_(ev.name) + '</div>' +
       (reply ? '<div style="margin:2px 0 4px;font-weight:bold;color:' + (/^Yes/.test(reply) ? '#2e7d32' : '#9e3b3b') + '">' + esc_(reply) + '</div>' : '') +
       [ev.when, ev.where, ev.details].filter(String).map(function (t) {
         return '<div style="color:#555;font-size:14px;line-height:1.5">' + esc_(t) + '</div>';

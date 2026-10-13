@@ -9,7 +9,7 @@ It has two web pages, both hosted by Google:
   - add, edit and reorder the **sub-events** (Friday dinner, the service, the party…);
   - manage the **guest list**: one row per family, with a tick box per sub-event to choose which ones each family is invited to;
   - send previews, invitations and reminders, and see the headcount for each sub-event as replies come in.
-- **The RSVP page, for guests.** Each family's email has a personal link. The page shows only the sub-events that family is invited to. For each one they pick *Joyfully accept* or *Regretfully decline* and say how many are coming. They can come back with the same link to change their answers.
+- **The RSVP page, for guests.** Each family's email has a personal link. The page shows only the sub-events that family is invited to. The sub-events are numbered in order (1. Friday Night, 2. Saturday Morning, 3. Saturday Night). They tick each one they'll come to and set how many are coming with − and + buttons. They can come back with the same link to change their answers.
 
 All the data lives in your Google Sheet, in tabs you can read and edit: **Settings**, **Events**, **Guests**, **Responses**, **Summary** and **Log**.
 
@@ -46,7 +46,7 @@ All the data lives in your Google Sheet, in tabs you can read and edit: **Settin
 ## 2. Set it up in the dashboard
 
 - **Invitation tab:** upload your picture (your printed design, a photo or a logo) and write the text. These placeholders fill in automatically: `{greeting}` `{family}` `{child}` `{hosts}` `{deadline}`. Each family's sub-events and their RSVP button are added below your message. Click **Save and update preview**, then check the preview as different families.
-- **Sub-events tab:** edit the three examples, add more, reorder them or delete them. When you add a sub-event, you choose whether every family is invited to it straight away. Leave that unticked for something only some families come to.
+- **Sub-events tab:** edit the three defaults (Friday Night, Saturday Morning, Saturday Night), add more, reorder them or delete them. When you add a sub-event, you choose whether every family is invited to it straight away. Leave that unticked for something only some families come to.
 - **Guest list tab:** use **+ Add a family**, or **Add many at once** to paste a list. Each line is `family name, email(s), most guests`, and you can copy those three columns straight from another spreadsheet. Then tick which sub-events each family is invited to; changes save immediately.
   - *Greeting* is how the email opens, for example "Dear Rachel & Josh". If you leave it blank, the script uses "Dear *family name*".
   - *Most guests* caps how many people the family can RSVP for at each sub-event.
