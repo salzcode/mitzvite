@@ -44,6 +44,8 @@ var SETTINGS_SPEC = [
   ['Child Name', 'Noah', 'Shown large at the top of the invitation and the RSVP page.'],
   ['Hosts', 'Sarah & David Cohen', 'Who the invitation is from.'],
   ['Invitation Heading', 'Bar Mitzvah', 'Small line above the name.'],
+  ['Font Style', 'classic', 'Chosen in the Dashboard. One of: ' + 'classic, script, formal, modern, soft, hebrew, bold, handwritten.'],
+  ['Color Theme', 'navy', 'Chosen in the Dashboard. One of: navy, black, royal, burgundy, forest, sky, blush, slate.'],
   ['Invitation Image', '', 'Managed by the Dashboard (a Google Drive file ID). Leave blank for no picture.'],
   ['RSVP Deadline', 'February 1, 2027', 'Shown in emails and on the RSVP page.'],
   ['Invitation Subject', "You're invited to {child}'s Bar Mitzvah", 'Placeholders: {greeting} {family} {child} {hosts} {deadline}'],
@@ -62,6 +64,63 @@ var SETTINGS_SPEC = [
   ['Test Mode', 'TRUE', 'TRUE: bulk sends only go to families marked Test. Set to FALSE to go live.'],
   ['Test Inboxes', '', 'Comma-separated addresses for preview emails (Gmail, Outlook, Yahoo, iCloud, mail-tester.com...).']
 ];
+
+/*
+ * Look of the invitation. "display" is used for the name and the sub-event
+ * titles, "body" for everything else. Each has a fallback for email apps that
+ * don't load web fonts (Gmail shows the fallback; Apple Mail and iPhone show
+ * the real font). `css` is the Google Fonts request for the pair.
+ */
+var SERIF = "Georgia,'Times New Roman',serif", SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif";
+var FONT_PRESETS = {
+  classic: { label: 'Classic', display: "'Playfair Display'," + SERIF, body: "'Lora'," + SERIF,
+    css: 'family=Playfair+Display:wght@400;600&family=Lora:ital,wght@0,400;0,600;1,400' },
+  script: { label: 'Elegant script', display: "'Great Vibes'," + SERIF, body: "'Cormorant Garamond'," + SERIF, displaySize: 1.5, scriptTitles: true,
+    css: 'family=Great+Vibes&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400' },
+  formal: { label: 'Formal engraved', display: "'Cinzel'," + SERIF, body: "'EB Garamond'," + SERIF, displaySize: 0.85,
+    css: 'family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,600;1,400' },
+  modern: { label: 'Modern', display: "'Montserrat'," + SANS, body: "'Lato'," + SANS, displaySize: 0.9,
+    css: 'family=Montserrat:wght@300;500;600&family=Lato:ital,wght@0,400;0,700;1,400' },
+  soft: { label: 'Soft & airy', display: "'Cormorant Garamond'," + SERIF, body: "'Raleway'," + SANS, displaySize: 1.15,
+    css: 'family=Cormorant+Garamond:wght@500;600&family=Raleway:wght@400;600' },
+  hebrew: { label: 'Hebrew-friendly', display: "'Frank Ruhl Libre'," + SERIF, body: "'Assistant'," + SANS,
+    css: 'family=Frank+Ruhl+Libre:wght@400;500;700&family=Assistant:wght@400;600' },
+  bold: { label: 'Bold celebration', display: "'Abril Fatface'," + SERIF, body: "'Nunito Sans'," + SANS,
+    css: 'family=Abril+Fatface&family=Nunito+Sans:ital,wght@0,400;0,700;1,400' },
+  handwritten: { label: 'Handwritten', display: "'Dancing Script'," + SERIF, body: "'Josefin Sans'," + SANS, displaySize: 1.25, scriptTitles: true,
+    css: 'family=Dancing+Script:wght@500;700&family=Josefin+Sans:wght@400;600' }
+};
+// ink: headings and buttons; accent: small heading, rules and numbers; bg: page; tint: soft panels.
+var THEMES = {
+  navy:     { label: 'Navy & gold',      ink: '#1f2a44', accent: '#b08d3c', bg: '#f7f2e8', tint: '#fbf8f1' },
+  black:    { label: 'Black & gold',     ink: '#151515', accent: '#b8913a', bg: '#f3f0ea', tint: '#faf8f4' },
+  royal:    { label: 'Royal blue & silver', ink: '#1c3f8f', accent: '#7d8aa0', bg: '#eef2f8', tint: '#f6f8fc' },
+  burgundy: { label: 'Burgundy & gold',  ink: '#6b1f2e', accent: '#b4894a', bg: '#f8f1ec', tint: '#fcf8f5' },
+  forest:   { label: 'Forest & brass',   ink: '#23432e', accent: '#a98a4f', bg: '#f2f1e8', tint: '#f9f8f2' },
+  sky:      { label: 'Sky & sand',       ink: '#22557f', accent: '#c29a5b', bg: '#eef5f9', tint: '#f6fafc' },
+  blush:    { label: 'Plum & blush',     ink: '#4f2f45', accent: '#c4879b', bg: '#fbf2f4', tint: '#fdf8f9' },
+  slate:    { label: 'Slate & teal',     ink: '#263238', accent: '#2a8c82', bg: '#f0f4f4', tint: '#f7fafa' }
+};
+
+/** Blends a #rrggbb colour toward white by `amt` (0–1); email apps don't all support transparency. */
+function mix_(hex, amt) {
+  var n = parseInt(hex.slice(1), 16), out = '#';
+  [16, 8, 0].forEach(function (sh) { var c = (n >> sh) & 255; out += ('0' + Math.round(c + (255 - c) * amt).toString(16)).slice(-2); });
+  return out;
+}
+
+function style_(s) {
+  var f = FONT_PRESETS[s['Font Style']] || FONT_PRESETS.classic;
+  var t = THEMES[s['Color Theme']] || THEMES.navy;
+  return {
+    font: s['Font Style'] in FONT_PRESETS ? s['Font Style'] : 'classic', theme: s['Color Theme'] in THEMES ? s['Color Theme'] : 'navy',
+    display: f.display, body: f.body, displaySize: f.displaySize || 1,
+    // Script lettering is lovely for the name but hard to read in event titles.
+    title: f.scriptTitles ? f.body : f.display, titleWeight: f.scriptTitles ? 600 : 400,
+    ink: t.ink, accent: t.accent, bg: t.bg, tint: t.tint,
+    fontsUrl: 'https://fonts.googleapis.com/css2?' + f.css + '&display=swap'
+  };
+}
 
 var DEFAULT_EVENTS = [
   ['E1', 'Friday Night', 'Friday, March 5, 2027 · 7:00 PM', 'Our home', ''],
@@ -362,6 +421,8 @@ function buildEmail_(kind, guest, s, events, url, imgSrc) {
   var intro = fill_(s[msgKey], guest, s);
   var mine = eventsFor_(guest, events);
 
+  var st = style_(s);
+  var D = st.display, B = st.body;
   var text = intro + '\n\n';
   var rows = '';
   mine.forEach(function (ev, n) {
@@ -371,34 +432,43 @@ function buildEmail_(kind, guest, s, events, url, imgSrc) {
       reply = !a ? 'No answer' : a.attending ? 'Yes, ' + a.count + (a.count === 1 ? ' guest' : ' guests') : 'Unable to attend';
     }
     text += (n + 1) + '. ' + ev.name + (reply ? ' — ' + reply : '') + '\n  ' + [ev.when, ev.where, ev.details].filter(String).join('\n  ') + '\n\n';
-    rows += '<tr><td style="padding:14px 18px;border-top:1px solid #eadfca">' +
-      '<div style="font-size:17px;font-weight:bold;color:#1f2a44"><span style="display:inline-block;width:24px;height:24px;line-height:24px;border-radius:12px;background:#1f2a44;color:#fff;text-align:center;font:bold 13px Arial,sans-serif;margin-right:8px;vertical-align:2px">' + (n + 1) + '</span>' + esc_(ev.name) + '</div>' +
-      (reply ? '<div style="margin:2px 0 4px;font-weight:bold;color:' + (/^Yes/.test(reply) ? '#2e7d32' : '#9e3b3b') + '">' + esc_(reply) + '</div>' : '') +
-      [ev.when, ev.where, ev.details].filter(String).map(function (t) {
-        return '<div style="color:#555;font-size:14px;line-height:1.5">' + esc_(t) + '</div>';
-      }).join('') + '</td></tr>';
+    rows += '<tr><td style="padding:0 0 12px">' +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + st.tint + ';border-radius:8px;border-left:3px solid ' + st.accent + '"><tr>' +
+      '<td width="44" valign="top" style="padding:16px 0 16px 16px;font-family:' + B + ';font-size:13px;letter-spacing:1px;color:' + st.accent + '">' + ('0' + (n + 1)).slice(-2) + '</td>' +
+      '<td style="padding:14px 18px 14px 6px">' +
+      '<div style="font-family:' + st.title + ';font-weight:' + st.titleWeight + ';font-size:' + (st.titleWeight > 400 ? 18 : Math.round(20 * Math.min(st.displaySize, 1.2))) + 'px;line-height:1.25;color:' + st.ink + '">' + esc_(ev.name) + '</div>' +
+      (reply ? '<div style="margin:4px 0 2px;font-family:' + B + ';font-weight:bold;font-size:14px;color:' + (/^Yes/.test(reply) ? '#2e7d32' : '#9e3b3b') + '">' + esc_(reply) + '</div>' : '') +
+      [ev.when, ev.where, ev.details].filter(String).map(function (t, i) {
+        return '<div style="font-family:' + B + ';color:' + (i === 0 ? '#333' : '#666') + ';font-size:14px;line-height:1.55' + (i === 2 ? ';font-style:italic' : '') + '">' + esc_(t) + '</div>';
+      }).join('') + '</td></tr></table></td></tr>';
   });
 
   var button = kind === 'confirm' ? 'Change my reply' : 'RSVP now';
   text += (kind === 'confirm' ? 'Need to change anything? Use your link: ' : 'Please RSVP here: ') + url + '\n';
   if (kind !== 'confirm') text += 'RSVP by ' + s['RSVP Deadline'] + '.\n';
 
+  var rule = '<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:14px auto"><tr>' +
+    '<td style="width:44px;border-top:1px solid ' + st.accent + '"></td><td style="padding:0 8px;color:' + st.accent + ';font-size:10px;line-height:1">◆</td>' +
+    '<td style="width:44px;border-top:1px solid ' + st.accent + '"></td></tr></table>';
+
   var html =
-    '<div style="background:#f7f2e8;padding:24px 10px;font-family:Georgia,\'Times New Roman\',serif">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;margin:0 auto;background:#ffffff;border-radius:10px;border:1px solid #eadfca">' +
-    (imgSrc ? '<tr><td style="padding:0"><img src="' + esc_(imgSrc) + '" alt="" width="560" style="display:block;width:100%;max-width:560px;height:auto;border-radius:10px 10px 0 0"></td></tr>' : '') +
-    '<tr><td style="padding:28px 24px 8px;text-align:center">' +
-    (s['Invitation Heading'] ? '<div style="letter-spacing:3px;color:#b08d3c;font-size:12px;text-transform:uppercase">' + esc_(s['Invitation Heading']) + '</div>' : '') +
-    '<div style="font-size:28px;color:#1f2a44;margin-top:6px">' + esc_(s['Child Name']) + '</div></td></tr>' +
-    '<tr><td style="padding:12px 24px 18px;font-size:16px;line-height:1.6;color:#333">' +
+    '<link href="' + esc_(st.fontsUrl) + '" rel="stylesheet">' +
+    '<div style="background:' + st.bg + ';padding:28px 10px;font-family:' + B + '">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid ' + mix_(st.accent, 0.65) + '">' +
+    (imgSrc ? '<tr><td style="padding:0"><img src="' + esc_(imgSrc) + '" alt="" width="580" style="display:block;width:100%;max-width:580px;height:auto;border-radius:12px 12px 0 0"></td></tr>' : '') +
+    '<tr><td style="padding:36px 32px 0;text-align:center">' +
+    (s['Invitation Heading'] ? '<div style="font-family:' + B + ';letter-spacing:4px;color:' + st.accent + ';font-size:12px;text-transform:uppercase">' + esc_(s['Invitation Heading']) + '</div>' : '') +
+    '<div style="font-family:' + D + ';font-size:' + Math.round(40 * st.displaySize) + 'px;line-height:1.15;color:' + st.ink + ';margin-top:10px">' + esc_(s['Child Name']) + '</div>' +
+    rule + '</td></tr>' +
+    '<tr><td style="padding:6px 36px 22px;font-family:' + B + ';font-size:16px;line-height:1.7;color:#333">' +
     esc_(intro).replace(/\n/g, '<br>') + '</td></tr>' +
-    '<tr><td style="padding:0 6px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + rows + '</table></td></tr>' +
-    '<tr><td style="padding:24px;text-align:center">' +
-    '<a href="' + esc_(url) + '" style="display:inline-block;background:#1f2a44;color:#ffffff;text-decoration:none;padding:13px 30px;border-radius:6px;font-size:17px;font-family:Arial,sans-serif">' + button + '</a>' +
-    (kind !== 'confirm' ? '<div style="margin-top:12px;color:#777;font-size:13px">Please reply by ' + esc_(s['RSVP Deadline']) + '</div>' : '') +
-    '<div style="margin-top:14px;color:#999;font-size:12px;font-family:Arial,sans-serif">Button not working? Copy this link into your browser:<br>' +
-    '<span style="word-break:break-all">' + esc_(url) + '</span></div>' +
-    '</td></tr></table></div>';
+    '<tr><td style="padding:0 24px 8px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + rows + '</table></td></tr>' +
+    '<tr><td style="padding:18px 24px 34px;text-align:center">' +
+    '<a href="' + esc_(url) + '" style="display:inline-block;background:' + st.ink + ';color:#ffffff;text-decoration:none;padding:15px 40px;border-radius:999px;font-family:' + B + ';font-size:16px;letter-spacing:1px">' + button + '</a>' +
+    (kind !== 'confirm' ? '<div style="margin-top:14px;font-family:' + B + ';color:#777;font-size:13px;font-style:italic">Kindly reply by ' + esc_(s['RSVP Deadline']) + '</div>' : '') +
+    '</td></tr></table>' +
+    '<div style="max-width:580px;margin:14px auto 0;text-align:center;color:#999;font-size:11px;font-family:Arial,sans-serif">Button not working? Copy this link into your browser:<br>' +
+    '<span style="word-break:break-all">' + esc_(url) + '</span></div></div>';
 
   return { subject: subject, text: text, html: html };
 }
@@ -471,6 +541,7 @@ function doGet(e) {
     preview: p.preview === '1',
     heading: s['Invitation Heading'], child: s['Child Name'], hosts: s['Hosts'], deadline: s['RSVP Deadline'],
     image: imageDataUrl_(s),
+    style: style_(s),
     events: mine.map(function (ev) { return { id: ev.id, name: ev.name, when: ev.when, where: ev.where, details: ev.details }; }),
     found: !!g,
     token: token,
@@ -645,6 +716,10 @@ function getDashboard() {
     help: SETTINGS_SPEC.reduce(function (m, r) { m[r[0]] = r[2]; return m; }, {}),
     testMode: s.testMode,
     image: imageDataUrl_(s),
+    style: style_(s),
+    fonts: Object.keys(FONT_PRESETS).map(function (k) { var f = FONT_PRESETS[k]; return { key: k, label: f.label, display: f.display, body: f.body, displaySize: f.displaySize || 1 }; }),
+    themes: Object.keys(THEMES).map(function (k) { var t = THEMES[k]; return { key: k, label: t.label, ink: t.ink, accent: t.accent, bg: t.bg }; }),
+    allFontsUrl: 'https://fonts.googleapis.com/css2?' + Object.keys(FONT_PRESETS).map(function (k) { return FONT_PRESETS[k].css; }).join('&') + '&display=swap',
     events: data.events.map(function (e) { return { id: e.id, name: e.name, when: e.when, where: e.where, details: e.details }; }),
     guests: data.list.map(guestView_),
     stats: stats_(data, s),
