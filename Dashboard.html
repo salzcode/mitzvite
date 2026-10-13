@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --bg: #f7f2e8; --card: #fff; --line: #eadfca; --ink: #1f2a44; --text: #333; --muted: #7a7466;
+      --gold: #b08d3c; --yes: #2e7d32; --yes-bg: #edf7ee; --no: #9e3b3b; --no-bg: #fbeeee; --warn: #b45309; --warn-bg: #fff4d6;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
+    header { background: var(--ink); color: #fff; padding: 14px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+    header h1 { font: 22px Georgia, 'Times New Roman', serif; margin: 0; flex: 1; min-width: 220px; }
+    header h1 small { display: block; font: 12px Arial, sans-serif; letter-spacing: 2px; text-transform: uppercase; color: #d9c48f; }
+    header a { color: #fff; font-size: 14px; }
+    .pill { border: 0; border-radius: 999px; padding: 6px 14px; font: bold 13px Arial, sans-serif; cursor: pointer; }
+    .pill.test { background: #f4c76a; color: #3b2a00; }
+    .pill.live { background: #7fd18b; color: #0c3312; }
+    nav { display: flex; gap: 2px; padding: 0 12px; background: #fff; border-bottom: 1px solid var(--line); overflow-x: auto; }
+    nav button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 13px 14px 10px; font: 15px Arial, sans-serif; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    nav button.on { color: var(--ink); border-bottom-color: var(--gold); font-weight: bold; }
+    main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 80px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 18px; }
+    .card h2 { margin: 0 0 12px; font: 19px Georgia, serif; color: var(--ink); }
+    .card h3 { margin: 18px 0 8px; font-size: 15px; color: var(--ink); }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .stat { background: var(--bg); border-radius: 8px; padding: 12px 14px; }
+    .stat b { display: block; font: 28px Georgia, serif; color: var(--ink); }
+    .stat span { color: var(--muted); font-size: 13px; }
+    .banner { background: var(--warn-bg); border: 1px solid #e8c873; border-radius: 8px; padding: 12px 14px; margin-bottom: 18px; }
+    .banner.live { background: var(--yes-bg); border-color: #a5d6a7; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px 8px; border-bottom: 1px solid #f0e8d8; vertical-align: top; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: normal; }
+    td.num, th.num { text-align: right; }
+    .scroll { overflow-x: auto; }
+    label.f { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+    input[type=text], input[type=email], input[type=number], textarea, select {
+      width: 100%; font: 15px Arial, sans-serif; border: 1px solid #d4cab6; border-radius: 6px; padding: 8px 10px; background: #fff; }
+    textarea { min-height: 120px; resize: vertical; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .btn { display: inline-block; border: 1px solid var(--ink); background: var(--ink); color: #fff; border-radius: 6px; padding: 9px 16px;
+           font: bold 14px Arial, sans-serif; cursor: pointer; text-decoration: none; }
+    .btn.ghost { background: #fff; color: var(--ink); }
+    .btn.danger { background: #fff; color: var(--no); border-color: var(--no); }
+    .btn.small { padding: 5px 10px; font-size: 13px; }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+    @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+    .preview { border: 1px solid var(--line); border-radius: 8px; width: 100%; height: 760px; background: var(--bg); }
+    .sticky { position: sticky; top: 12px; }
+    .img-box { border: 2px dashed #d4cab6; border-radius: 8px; padding: 14px; text-align: center; background: var(--bg); }
+    .img-box img { max-width: 100%; max-height: 240px; border-radius: 6px; display: block; margin: 0 auto 10px; }
+    .event-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+    .event-card .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    @media (max-width: 640px) { .event-card .two { grid-template-columns: 1fr; } }
+    .tag { display: inline-block; font-size: 12px; border-radius: 4px; padding: 1px 7px; background: #eee; color: #555; white-space: nowrap; }
+    .tag.yes { background: var(--yes-bg); color: var(--yes); }
+    .tag.no { background: var(--no-bg); color: var(--no); }
+    .tag.wait { background: var(--warn-bg); color: var(--warn); }
+    .tag.test { background: #e8eaf6; color: #303f9f; }
+    .evcol { text-align: center; min-width: 74px; }
+    .evcol input { width: 18px; height: 18px; cursor: pointer; }
+    .evcol .tag { display: block; margin-top: 3px; }
+    td .fam { font-weight: bold; color: var(--ink); }
+    td .sub { font-size: 12px; color: var(--muted); word-break: break-all; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .toolbar input[type=text] { width: 220px; }
+    .toolbar select { width: auto; }
+    #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: 92vw; background: var(--ink); color: #fff;
+             padding: 12px 18px; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.25); display: none; z-index: 30; }
+    #toast.err { background: var(--no); }
+    #busy { position: fixed; inset: 0; background: rgba(247,242,232,.55); display: none; z-index: 20; cursor: progress; }
+    #busy div { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); background: #fff; border: 1px solid var(--line);
+                border-radius: 8px; padding: 12px 18px; font-weight: bold; color: var(--ink); }
+    dialog { border: 1px solid var(--line); border-radius: 10px; padding: 20px; width: min(560px, 94vw); }
+    dialog::backdrop { background: rgba(31,42,68,.35); }
+    dialog h2 { margin: 0 0 6px; font: 19px Georgia, serif; color: var(--ink); }
+    .checks label { display: flex; align-items: center; gap: 8px; margin: 6px 0; cursor: pointer; }
+    .checks input { width: 18px; height: 18px; }
+    .empty { text-align: center; color: var(--muted); padding: 24px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1><small>Invitations dashboard</small><span id="title">Loading…</span></h1>
+  <button class="pill" id="modeBtn" title="Switch between test and live sending"></button>
+  <a id="sheetLink" target="_blank" href="#">Open the Google Sheet ↗</a>
+</header>
+<nav id="tabs">
+  <button data-tab="overview" class="on">Overview</button>
+  <button data-tab="invite">Invitation</button>
+  <button data-tab="events">Sub-events</button>
+  <button data-tab="guests">Guest list</button>
+  <button data-tab="settings">Email &amp; settings</button>
+</nav>
+<main id="main"><div class="empty">Loading…</div></main>
+<div id="busy"><div id="busyText">Working…</div></div>
+<div id="toast"></div>
+
+<dialog id="guestDlg">
+  <form method="dialog" id="guestForm">
+    <h2 id="gdTitle">Add a family</h2>
+    <label class="f">Family name</label><input type="text" id="gdFamily" placeholder="The Levi Family" required>
+    <label class="f">Greeting</label><input type="text" id="gdGreeting" placeholder="Dear Rachel & Josh">
+    <div class="hint">How the email opens. Leave blank for "Dear <i>family name</i>".</div>
+    <label class="f">Email address(es)</label><input type="text" id="gdEmails" placeholder="rachel@gmail.com, josh@outlook.com">
+    <div class="hint">Separate several addresses with commas. Everyone listed gets the emails.</div>
+    <label class="f">Most guests they can RSVP for</label><input type="number" id="gdMax" min="1" max="30" value="2" style="width:100px">
+    <label class="f">Invited to</label><div class="checks" id="gdEvents"></div>
+    <div class="checks"><label><input type="checkbox" id="gdTest"> Test family (only gets emails while Test Mode is on)</label></div>
+    <div class="row" style="margin-top:16px;justify-content:flex-end">
+      <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn" id="gdSave" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="importDlg">
+  <form method="dialog">
+    <h2>Add many families</h2>
+    <p class="hint" style="font-size:13px">One family per line: <b>family name, email(s), most guests</b>. You can also copy three columns
+      straight from a spreadsheet and paste them here. New families are invited to every sub-event; you can change that afterwards.</p>
+    <textarea id="importText" style="min-height:180px" placeholder="The Levi Family, rachel@gmail.com josh@outlook.com, 4&#10;Grandma Ruth, ruth@icloud.com, 1"></textarea>
+    <div class="checks"><label><input type="checkbox" id="importTest"> Mark them all as test families</label></div>
+    <div class="row" style="margin-top:16px;justify-content:flex-end">
+      <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn" value="add">Add families</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="linkDlg">
+  <form method="dialog">
+    <h2 id="ldTitle">RSVP link</h2>
+    <p class="hint" style="font-size:13px">This family's personal link. You can text or WhatsApp it to them.</p>
+    <textarea id="ldUrl" style="min-height:70px" readonly></textarea>
+    <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <a class="btn ghost" id="ldPreview" target="_blank" href="#">Open a preview (doesn't save)</a>
+      <button class="btn ghost" type="button" id="ldCopy">Copy</button>
+      <button class="btn" value="ok">Done</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  var D = null;                 // everything from the server
+  var tab = 'overview';
+  var guestFilter = { q: '', status: '' };
+  var selected = {};            // token -> true
+  var previewKind = 'invite', previewToken = '';
+
+  /* ---------------------------------------------------------- plumbing */
+
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function $(id) { return document.getElementById(id); }
+  var toastTimer;
+  function toast(msg, isErr) {
+    var t = $('toast');
+    t.textContent = msg; t.className = isErr ? 'err' : ''; t.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.style.display = 'none'; }, isErr ? 9000 : Math.max(4000, msg.length * 60));
+  }
+  /** Calls a server function; most return the whole dashboard, which re-renders the page. */
+  function call(fn, args, busyText, done) {
+    $('busyText').textContent = busyText || 'Saving…';
+    $('busy').style.display = 'block';
+    var r = google.script.run
+      .withSuccessHandler(function (res) {
+        $('busy').style.display = 'none';
+        if (res && res.settings) { D = res; render(); if (res.notice) toast(res.notice); }
+        if (done) done(res);
+      })
+      .withFailureHandler(function (e) {
+        $('busy').style.display = 'none';
+        toast((e && e.message) || String(e), true);
+      });
+    r[fn].apply(r, args || []);
+  }
+
+  document.querySelectorAll('#tabs button').forEach(function (b) {
+    b.addEventListener('click', function () { tab = b.getAttribute('data-tab'); render(); });
+  });
+  $('modeBtn').addEventListener('click', function () {
+    var goLive = D.testMode;
+    var q = goLive
+      ? 'Switch to LIVE? Sends will then go to every real family on the list (test families are skipped).'
+      : 'Switch back to TEST MODE? Sends will only go to families marked Test.';
+    if (!confirm(q)) return;
+    call('saveSettings', [{ 'Test Mode': !goLive }], 'Switching…');
+  });
+
+  function eventName(id) {
+    var e = D.events.filter(function (x) { return x.id === id; })[0];
+    return e ? e.name : id;
+  }
+  function inScope(g) { return D.testMode ? g.test : !g.test; }
+  function answerTag(g, evId) {
+    if (g.invitedTo.indexOf(evId) === -1) return '';
+    var a = g.answers[evId];
+    if (!a) return g.inviteSent ? '<span class="tag wait">no reply</span>' : '';
+    return a.attending ? '<span class="tag yes">✓ ' + a.count + '</span>' : '<span class="tag no">✗ no</span>';
+  }
+  function statusTag(g) {
+    var cls = /Replied/.test(g.status) ? 'yes' : /awaiting/.test(g.status) ? 'wait' : '';
+    return '<span class="tag ' + cls + '">' + esc(g.status) + '</span>';
+  }
+
+  /* ------------------------------------------------------------ render */
+
+  function render() {
+    $('title').textContent = (D.settings['Child Name'] || '') + "'s " + (D.settings['Invitation Heading'] || 'Bar Mitzvah');
+    $('sheetLink').href = D.sheetUrl;
+    var m = $('modeBtn');
+    m.textContent = D.testMode ? 'TEST MODE · switch to live' : 'LIVE · switch to test';
+    m.className = 'pill ' + (D.testMode ? 'test' : 'live');
+    document.querySelectorAll('#tabs button').forEach(function (b) { b.className = b.getAttribute('data-tab') === tab ? 'on' : ''; });
+    var html = setupBanner() + ({ overview: overview, invite: invite, events: events, guests: guests, settings: settings }[tab])();
+    $('main').innerHTML = html;
+    ({ overview: wireOverview, invite: wireInvite, events: wireEvents, guests: wireGuests, settings: wireSettings }[tab])();
+  }
+
+  function setupBanner() {
+    if (D.settings['RSVP Page URL']) return '';
+    return '<div class="banner"><b>One setup step left:</b> publish the RSVP page and paste its address under ' +
+      '<a href="#" data-goto="settings">Email &amp; settings</a> → RSVP page address. Until then you can design the invitation ' +
+      'and build the guest list, but nothing can be sent. The README explains the clicks.</div>';
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('[data-goto]');
+    if (a) { e.preventDefault(); tab = a.getAttribute('data-goto'); render(); }
+  });
+
+  /* ---------------------------------------------------------- overview */
+
+  function overview() {
+    var s = D.stats;
+    var h = '<div class="banner' + (D.testMode ? '' : ' live') + '">' + (D.testMode
+      ? '<b>Test Mode is on.</b> Sends go only to families marked Test, and the numbers below count only them. ' +
+        'When you\'re happy with the test run, switch to live with the button at the top.'
+      : '<b>Live.</b> Sends go to every real family. Test families are skipped and not counted.') + '</div>';
+    h += '<div class="card"><h2>At a glance</h2><div class="grid">' +
+      stat(s.families, 'families on the list') + stat(s.invited, 'invited') + stat(s.replied, 'replied') +
+      stat(s.awaiting, 'awaiting a reply') + stat(s.notInvited, 'not invited yet') + '</div></div>';
+    h += '<div class="card"><h2>Sub-events</h2><div class="scroll"><table><tr><th>Sub-event</th><th class="num">Guests coming</th>' +
+      '<th class="num">Families invited</th><th class="num">Said yes</th><th class="num">Said no</th><th class="num">No answer yet</th></tr>';
+    s.events.forEach(function (e) {
+      h += '<tr><td><b>' + esc(e.name) + '</b></td><td class="num"><b>' + e.guests + '</b> <span class="hint">of up to ' + e.maxGuests + '</span></td>' +
+        '<td class="num">' + e.invitedFamilies + '</td><td class="num">' + e.yes + '</td><td class="num">' + e.no + '</td><td class="num">' + e.pending + '</td></tr>';
+    });
+    if (!s.events.length) h += '<tr><td colspan="6" class="empty">No sub-events yet. Add them under <a href="#" data-goto="events">Sub-events</a>.</td></tr>';
+    h += '</table></div></div>';
+    h += '<div class="card"><h2>Send</h2>' +
+      '<p class="hint" style="font-size:13px">Gmail lets this account send about ' + D.quota + ' more emails today. A family with two addresses counts twice. ' +
+      'If the limit is reached partway, sending stops cleanly; press the same button tomorrow to continue.</p>' +
+      '<div class="row">' +
+      '<button class="btn ghost" id="ovPreview">Send preview to my test inboxes</button>' +
+      '<button class="btn" id="ovInvite">Send invitations to everyone not yet invited</button>' +
+      '<button class="btn" id="ovRemind">Send reminders to everyone who hasn\'t replied</button>' +
+      '</div>' +
+      (D.testMode ? '<div class="row" style="margin-top:12px"><button class="btn danger small" id="ovReset">Clear test families\' replies and sent dates</button></div>' : '') +
+      '</div>';
+    var waiting = D.guests.filter(function (g) { return inScope(g) && g.inviteSent && !g.responded; });
+    h += '<div class="card"><h2>Still waiting to hear from (' + waiting.length + ')</h2>' +
+      (waiting.length ? '<div class="scroll"><table>' + waiting.map(function (g) {
+        return '<tr><td class="fam">' + esc(g.family) + '</td><td class="sub">' + esc(g.emails) + '</td><td>invited ' + esc(g.inviteSent) +
+          (g.reminders ? ', ' + g.reminders + ' reminder' + (g.reminders === 1 ? '' : 's') : '') + '</td></tr>';
+      }).join('') + '</table></div>' : '<div class="empty">Nobody. 🎉</div>') + '</div>';
+    var notes = D.guests.filter(function (g) { return inScope(g) && g.message; });
+    if (notes.length) {
+      h += '<div class="card"><h2>Notes from guests</h2>' + notes.map(function (g) {
+        return '<p><b>' + esc(g.family) + ':</b> ' + esc(g.message) + '</p>';
+      }).join('') + '</div>';
+    }
+    return h;
+  }
+  function stat(n, label) { return '<div class="stat"><b>' + n + '</b><span>' + label + '</span></div>'; }
+
+  function wireOverview() {
+    $('ovPreview').onclick = function () {
+      var to = D.settings['Test Inboxes'] || D.owner;
+      if (!confirm('Send a sample invitation and reminder to:\n\n' + to + '\n\nThe RSVP button in them opens a preview that doesn\'t save.')) return;
+      call('sendPreviewEmails', [''], 'Sending previews…', function (msg) { if (typeof msg === 'string') toast(msg); });
+    };
+    $('ovInvite').onclick = function () { confirmAndSend('new'); };
+    $('ovRemind').onclick = function () { confirmAndSend('reminders'); };
+    if ($('ovReset')) $('ovReset').onclick = function () {
+      if (confirm('Clear the replies, sent dates and reminder counts of every test family?')) call('resetTestRows', [], 'Clearing…');
+    };
+  }
+
+  function confirmAndSend(mode) {
+    google.script.run.withSuccessHandler(function (c) {
+      if (!c.families) { toast('Nobody to send to.' + (c.testMode ? ' Test Mode is on, so only families marked Test are included.' : ''), true); return; }
+      var what = mode === 'new' ? 'the invitation' : 'a reminder';
+      var q = 'Send ' + what + ' to ' + c.families + ' famil' + (c.families === 1 ? 'y' : 'ies') + ' (' + c.addresses + ' email addresses)?' +
+        (c.testMode ? '\n\nTEST MODE: only families marked Test.' : '\n\nLIVE: these are real guests.') +
+        '\n\nEmails you can still send today: ' + c.quota;
+      if (confirm(q)) call('sendNow', [mode], 'Sending… this can take a minute');
+    }).withFailureHandler(function (e) { toast(e.message, true); }).countRecipients(mode);
+  }
+
+  /* -------------------------------------------------------- invitation */
+
+  var TEXT_FIELDS = [
+    ['Invitation Subject', 'Invitation email · subject', 'text'],
+    ['Invitation Message', 'Invitation email · message', 'area'],
+    ['Reminder Subject', 'Reminder email · subject', 'text'],
+    ['Reminder Message', 'Reminder email · message', 'area'],
+    ['Confirmation Subject', 'Thank-you email after they reply · subject', 'text'],
+    ['Confirmation Message', 'Thank-you email · message', 'area']
+  ];
+
+  function field(key, label, type, hint) {
+    var v = D.settings[key] == null ? '' : D.settings[key];
+    return '<label class="f">' + esc(label) + '</label>' +
+      (type === 'area' ? '<textarea data-key="' + esc(key) + '">' + esc(v) + '</textarea>'
+        : '<input type="text" data-key="' + esc(key) + '" value="' + esc(v) + '">') +
+      (hint ? '<div class="hint">' + hint + '</div>' : '');
+  }
+
+  function invite() {
+    var h = '<div class="split"><div>';
+    h += '<div class="card"><h2>Picture</h2><div class="img-box">' +
+      (D.image ? '<img src="' + D.image + '" alt="Invitation picture">' : '<p class="hint" style="font-size:14px">No picture yet. It appears at the top of every email and of the RSVP page.</p>') +
+      '<div class="row" style="justify-content:center"><label class="btn ghost">' + (D.image ? 'Replace picture' : 'Choose a picture') +
+      '<input type="file" id="imgFile" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none"></label>' +
+      (D.image ? '<button class="btn danger" id="imgRemove">Remove</button>' : '') + '</div>' +
+      '<div class="hint">Your design, a photo or a logo. Wide pictures work best. It\'s resized to 1200 pixels wide to keep emails light.</div></div></div>';
+    h += '<div class="card" id="textCard"><h2>Text</h2>' +
+      field('Invitation Heading', 'Small heading above the name', 'text', 'For example "Bar Mitzvah" or "Please join us for the Bar Mitzvah of".') +
+      field('Child Name', 'Name', 'text') +
+      field('Hosts', 'From (hosts)', 'text') +
+      field('RSVP Deadline', 'Reply by', 'text', 'Written exactly as guests should see it.') +
+      '<p class="hint" style="font-size:13px;margin-top:16px">In the subjects and messages, these fill in by themselves: ' +
+      '<code>{greeting}</code> <code>{family}</code> <code>{child}</code> <code>{hosts}</code> <code>{deadline}</code>. ' +
+      'Each family\'s sub-events and RSVP button are added below the message.</p>';
+    TEXT_FIELDS.forEach(function (f) { h += field(f[0], f[1], f[2]); });
+    h += '<div class="row" style="margin-top:16px"><button class="btn" id="saveText">Save and update preview</button></div></div>';
+    h += '</div><div><div class="card sticky"><h2>Preview</h2><div class="row" style="margin-bottom:10px">' +
+      '<select id="pvKind" style="width:auto">' +
+      [['invite', 'Invitation'], ['reminder', 'Reminder'], ['confirm', 'Thank-you']].map(function (k) {
+        return '<option value="' + k[0] + '"' + (previewKind === k[0] ? ' selected' : '') + '>' + k[1] + '</option>';
+      }).join('') + '</select>' +
+      '<select id="pvFamily" style="width:auto;max-width:240px"><option value="">' + (D.guests.length ? 'as the first family' : 'as a sample family') + '</option>' +
+      D.guests.map(function (g) { return '<option value="' + esc(g.token) + '"' + (previewToken === g.token ? ' selected' : '') + '>as ' + esc(g.family) + '</option>'; }).join('') +
+      '</select></div><div class="hint" id="pvSubject"></div><iframe class="preview" id="pvFrame" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe></div></div></div>';
+    return h;
+  }
+
+  function loadPreview() {
+    google.script.run.withSuccessHandler(function (p) {
+      $('pvSubject').innerHTML = '<b>Subject:</b> ' + esc(p.subject);
+      $('pvFrame').srcdoc = '<!doctype html><meta charset="utf-8"><base target="_blank"><body style="margin:0">' + p.html + '</body>';
+    }).withFailureHandler(function (e) { $('pvSubject').textContent = e.message; }).previewEmail(previewKind, previewToken);
+  }
+
+  function collect(root) {
+    var v = {};
+    root.querySelectorAll('[data-key]').forEach(function (el) { v[el.getAttribute('data-key')] = el.type === 'checkbox' ? el.checked : el.value; });
+    return v;
+  }
+
+  function wireInvite() {
+    loadPreview();
+    $('pvKind').onchange = function () { previewKind = this.value; loadPreview(); };
+    $('pvFamily').onchange = function () { previewToken = this.value; loadPreview(); };
+    $('saveText').onclick = function () { call('saveSettings', [collect($('textCard'))], 'Saving…', function () { toast('Saved.'); }); };
+    if ($('imgRemove')) $('imgRemove').onclick = function () { if (confirm('Remove the picture?')) call('removeImage', [], 'Removing…'); };
+    $('imgFile').onchange = function () {
+      var f = this.files[0];
+      if (!f) return;
+      resizeImage(f, 1200, function (dataUrl) { call('uploadImage', [dataUrl, f.name], 'Uploading picture…', function () { toast('Picture saved.'); }); });
+    };
+  }
+
+  /** Shrinks a picture in the browser so emails stay small. Keeps PNG for transparency, otherwise JPEG. */
+  function resizeImage(file, maxW, cb) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, maxW / img.width);
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        var ctx = c.getContext('2d');
+        var png = file.type === 'image/png';
+        if (!png) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); }
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        cb(c.toDataURL(png ? 'image/png' : 'image/jpeg', 0.86));
+      };
+      img.onerror = function () { toast('That file doesn\'t look like a picture.', true); };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /* ------------------------------------------------------------ events */
+
+  function events() {
+    var h = '<div class="card"><h2>Sub-events</h2><p class="hint" style="font-size:13px">Guests see these in this order. ' +
+      'Each family only sees the ones you invite them to (tick them on the <a href="#" data-goto="guests">Guest list</a>).</p>';
+    D.events.forEach(function (e, i) {
+      var st = D.stats.events.filter(function (x) { return x.id === e.id; })[0] || {};
+      h += '<div class="event-card" data-id="' + esc(e.id) + '">' +
+        '<div class="row" style="justify-content:space-between"><b style="color:var(--ink)">' + esc(e.name || 'Untitled') + '</b>' +
+        '<span class="hint">' + (st.invitedFamilies || 0) + (st.invitedFamilies === 1 ? ' family' : ' families') + ' invited · ' + (st.guests || 0) + ' guests coming</span></div>' +
+        '<div class="two">' +
+        '<div><label class="f">Name</label><input type="text" data-f="name" value="' + esc(e.name) + '"></div>' +
+        '<div><label class="f">When</label><input type="text" data-f="when" value="' + esc(e.when) + '" placeholder="Saturday, March 6, 2027 · 7:00 PM"></div>' +
+        '<div><label class="f">Where</label><input type="text" data-f="where" value="' + esc(e.where) + '"></div>' +
+        '<div><label class="f">Details (optional)</label><input type="text" data-f="details" value="' + esc(e.details) + '" placeholder="Dress code, parking…"></div>' +
+        '</div><div class="row" style="margin-top:10px">' +
+        '<button class="btn small" data-act="save">Save</button>' +
+        '<button class="btn ghost small" data-act="up"' + (i === 0 ? ' disabled' : '') + '>↑ Move up</button>' +
+        '<button class="btn ghost small" data-act="down"' + (i === D.events.length - 1 ? ' disabled' : '') + '>↓ Move down</button>' +
+        '<button class="btn danger small" data-act="del">Delete</button></div></div>';
+    });
+    h += '</div><div class="card" id="newEvent"><h2>Add a sub-event</h2><div class="event-card" style="border:0;padding:0"><div class="two">' +
+      '<div><label class="f">Name</label><input type="text" data-f="name" placeholder="Sunday Brunch"></div>' +
+      '<div><label class="f">When</label><input type="text" data-f="when" placeholder="Sunday, March 7, 2027 · 11:00 AM"></div>' +
+      '<div><label class="f">Where</label><input type="text" data-f="where"></div>' +
+      '<div><label class="f">Details (optional)</label><input type="text" data-f="details"></div></div>' +
+      '<div class="checks" style="margin-top:10px"><label><input type="checkbox" id="neAll"> Invite every family to it now</label></div>' +
+      '<div class="hint">Leave this unticked for something only some families come to; then tick those families on the Guest list.</div>' +
+      '<div class="row" style="margin-top:12px"><button class="btn" id="neAdd">Add sub-event</button></div></div></div>';
+    return h;
+  }
+
+  function readEventCard(el) {
+    var ev = { id: el.getAttribute('data-id') || '' };
+    el.querySelectorAll('[data-f]').forEach(function (i) { ev[i.getAttribute('data-f')] = i.value; });
+    return ev;
+  }
+
+  function wireEvents() {
+    document.querySelectorAll('.event-card[data-id]').forEach(function (card) {
+      var id = card.getAttribute('data-id');
+      card.querySelectorAll('[data-act]').forEach(function (b) {
+        b.onclick = function () {
+          var act = b.getAttribute('data-act');
+          if (act === 'save') call('saveEvent', [readEventCard(card), false], 'Saving…', function () { toast('Saved.'); });
+          if (act === 'up') call('moveEvent', [id, -1], 'Moving…');
+          if (act === 'down') call('moveEvent', [id, 1], 'Moving…');
+          if (act === 'del' && confirm('Delete "' + eventName(id) + '"? Any replies to it are deleted too. Emails already sent can\'t be changed.')) call('deleteEvent', [id], 'Deleting…');
+        };
+      });
+    });
+    $('neAdd').onclick = function () {
+      var ev = readEventCard($('newEvent').querySelector('.event-card'));
+      ev.id = '';
+      call('saveEvent', [ev, $('neAll').checked], 'Adding…', function () { toast('Added "' + ev.name + '".'); });
+    };
+  }
+
+  /* ------------------------------------------------------------ guests */
+
+  function filteredGuests() {
+    var q = guestFilter.q.toLowerCase();
+    return D.guests.filter(function (g) {
+      if (q && (g.family + ' ' + g.emails + ' ' + g.greeting).toLowerCase().indexOf(q) === -1) return false;
+      var f = guestFilter.status;
+      if (f === 'test' && !g.test) return false;
+      if (f === 'real' && g.test) return false;
+      if (f === 'new' && g.inviteSent) return false;
+      if (f === 'waiting' && !(g.inviteSent && !g.responded)) return false;
+      if (f === 'replied' && !g.responded) return false;
+      if (f.indexOf('ev:') === 0 && g.invitedTo.indexOf(f.slice(3)) === -1) return false;
+      return true;
+    });
+  }
+
+  function guests() {
+    var list = filteredGuests();
+    var nSel = Object.keys(selected).filter(function (t) { return selected[t]; }).length;
+    var h = '<div class="card"><h2>Guest list</h2><div class="toolbar">' +
+      '<button class="btn" id="gAdd">+ Add a family</button>' +
+      '<button class="btn ghost" id="gImport">Add many at once</button>' +
+      '<input type="text" id="gSearch" placeholder="Search names or emails" value="' + esc(guestFilter.q) + '">' +
+      '<select id="gFilter"><option value="">Everyone</option>' +
+      [['new', 'Not invited yet'], ['waiting', 'Awaiting a reply'], ['replied', 'Replied'], ['test', 'Test families'], ['real', 'Real families']].map(function (o) {
+        return '<option value="' + o[0] + '"' + (guestFilter.status === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('') +
+      D.events.map(function (e) {
+        return '<option value="ev:' + esc(e.id) + '"' + (guestFilter.status === 'ev:' + e.id ? ' selected' : '') + '>Invited to ' + esc(e.name) + '</option>';
+      }).join('') + '</select></div>';
+    h += '<div class="toolbar" id="bulk" style="' + (nSel ? '' : 'display:none') + '"><b>' + nSel + ' selected:</b>' +
+      '<button class="btn small" id="bSend">Send the invitation</button>' +
+      '<button class="btn ghost small" id="bTest">Mark as test</button>' +
+      '<button class="btn ghost small" id="bReal">Mark as real</button>' +
+      '<button class="btn danger small" id="bDel">Delete</button>' +
+      '<button class="btn ghost small" id="bClear">Clear selection</button></div>';
+    h += '<p class="hint" style="font-size:13px">Tick a box under a sub-event to invite that family to it. Changes save right away. ' +
+      'Under each box you\'ll see their answer: ✓ and how many are coming, ✗ for no.</p>';
+    h += '<div class="scroll"><table><tr><th><input type="checkbox" id="selAll"></th><th>Family</th><th class="num">Max</th>';
+    D.events.forEach(function (e) { h += '<th class="evcol">' + esc(e.name) + '</th>'; });
+    h += '<th>Status</th><th></th></tr>';
+    list.forEach(function (g) {
+      h += '<tr data-token="' + esc(g.token) + '"><td><input type="checkbox" class="sel"' + (selected[g.token] ? ' checked' : '') + '></td>' +
+        '<td><div class="fam">' + esc(g.family) + (g.test ? ' <span class="tag test">test</span>' : '') + '</div>' +
+        '<div class="sub">' + (esc(g.emails) || '<span style="color:var(--no)">no email</span>') + '</div>' +
+        (g.message ? '<div class="sub" title="' + esc(g.message) + '">💬 ' + esc(g.message.slice(0, 60)) + (g.message.length > 60 ? '…' : '') + '</div>' : '') + '</td>' +
+        '<td class="num">' + g.max + '</td>';
+      D.events.forEach(function (e) {
+        h += '<td class="evcol"><input type="checkbox" class="inv" data-ev="' + esc(e.id) + '"' + (g.invitedTo.indexOf(e.id) !== -1 ? ' checked' : '') +
+          ' title="Invite ' + esc(g.family) + ' to ' + esc(e.name) + '">' + answerTag(g, e.id) + '</td>';
+      });
+      h += '<td>' + statusTag(g) + (g.inviteSent ? '<div class="sub">sent ' + esc(g.inviteSent) + '</div>' : '') + '</td>' +
+        '<td style="white-space:nowrap"><button class="btn ghost small" data-act="edit">Edit</button> ' +
+        '<button class="btn ghost small" data-act="link">Link</button></td></tr>';
+    });
+    if (!list.length) h += '<tr><td colspan="' + (5 + D.events.length) + '" class="empty">' + (D.guests.length ? 'No families match.' : 'No families yet. Add the first one above.') + '</td></tr>';
+    h += '</table></div><p class="hint">' + D.guests.length + ' families in total. You can also edit the list directly in the Guests tab of the Google Sheet.</p></div>';
+    return h;
+  }
+
+  function guestByToken(t) { return D.guests.filter(function (g) { return g.token === t; })[0]; }
+  function selectedTokens() { return Object.keys(selected).filter(function (t) { return selected[t] && guestByToken(t); }); }
+
+  function wireGuests() {
+    $('gAdd').onclick = function () { openGuest(null); };
+    $('gImport').onclick = function () { $('importText').value = ''; $('importTest').checked = D.testMode; $('importDlg').showModal(); };
+    var searchTimer;
+    $('gSearch').oninput = function () {
+      var el = this;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () {
+        guestFilter.q = el.value; render();
+        var s = $('gSearch'); s.focus(); s.setSelectionRange(s.value.length, s.value.length);
+      }, 250);
+    };
+    $('gFilter').onchange = function () { guestFilter.status = this.value; render(); };
+    $('selAll').onchange = function () {
+      var on = this.checked;
+      filteredGuests().forEach(function (g) { selected[g.token] = on; });
+      render();
+    };
+    document.querySelectorAll('tr[data-token]').forEach(function (tr) {
+      var g = guestByToken(tr.getAttribute('data-token'));
+      tr.querySelector('.sel').onchange = function () { selected[g.token] = this.checked; render(); };
+      tr.querySelectorAll('.inv').forEach(function (cb) {
+        cb.onchange = function () {
+          var ids = D.events.map(function (e) { return e.id; }).filter(function (id) {
+            var box = tr.querySelector('.inv[data-ev="' + id + '"]');
+            return box && box.checked;
+          });
+          if (!ids.length) { cb.checked = true; toast('A family needs at least one sub-event. To remove them, use Delete.', true); return; }
+          var copy = JSON.parse(JSON.stringify(g)); copy.invitedTo = ids;
+          call('saveGuest', [copy], 'Saving…');
+        };
+      });
+      tr.querySelector('[data-act="edit"]').onclick = function () { openGuest(g); };
+      tr.querySelector('[data-act="link"]').onclick = function () { showLink(g); };
+    });
+    if ($('bSend')) {
+      $('bSend').onclick = function () {
+        var t = selectedTokens();
+        var again = t.filter(function (x) { return guestByToken(x).inviteSent; }).length;
+        if (confirm('Send the invitation to ' + t.length + ' selected famil' + (t.length === 1 ? 'y' : 'ies') + '?' +
+          (again ? '\n\n' + again + ' of them were already invited and will get it again.' : '') +
+          '\n\nThis sends to exactly the families you selected, whether or not Test Mode is on.')) {
+          call('sendNow', [t], 'Sending…', function () { selected = {}; render(); });
+        }
+      };
+      $('bTest').onclick = function () { bulkMark(true); };
+      $('bReal').onclick = function () { bulkMark(false); };
+      $('bDel').onclick = function () {
+        var t = selectedTokens();
+        if (confirm('Delete ' + t.length + ' famil' + (t.length === 1 ? 'y' : 'ies') + ' and their replies? This can\'t be undone.')) {
+          call('deleteGuests', [t], 'Deleting…', function () { selected = {}; render(); });
+        }
+      };
+      $('bClear').onclick = function () { selected = {}; render(); };
+    }
+  }
+
+  function bulkMark(test) {
+    var t = selectedTokens();
+    (function next(i) {
+      if (i >= t.length) { selected = {}; render(); return; }
+      var copy = JSON.parse(JSON.stringify(guestByToken(t[i]))); copy.test = test;
+      call('saveGuest', [copy], 'Saving ' + (i + 1) + ' of ' + t.length + '…', function () { next(i + 1); });
+    })(0);
+  }
+
+  var editing = null;
+  function openGuest(g) {
+    editing = g;
+    $('gdTitle').textContent = g ? 'Edit ' + g.family : 'Add a family';
+    $('gdFamily').value = g ? g.family : '';
+    $('gdGreeting').value = g ? g.greeting : '';
+    $('gdEmails').value = g ? g.emails : '';
+    $('gdMax').value = g ? g.max : 2;
+    $('gdTest').checked = g ? g.test : D.testMode;
+    $('gdEvents').innerHTML = D.events.map(function (e) {
+      var on = g ? g.invitedTo.indexOf(e.id) !== -1 : true;
+      return '<label><input type="checkbox" value="' + esc(e.id) + '"' + (on ? ' checked' : '') + '> ' + esc(e.name) +
+        (e.when ? ' <span class="hint">· ' + esc(e.when) + '</span>' : '') + '</label>';
+    }).join('') || '<div class="hint">Add sub-events first.</div>';
+    $('guestDlg').showModal();
+  }
+  $('guestDlg').addEventListener('close', function () {
+    if ($('guestDlg').returnValue !== 'save') return;
+    var ids = [].slice.call($('gdEvents').querySelectorAll('input:checked')).map(function (i) { return i.value; });
+    var g = {
+      token: editing ? editing.token : '', family: $('gdFamily').value, greeting: $('gdGreeting').value,
+      emails: $('gdEmails').value, max: $('gdMax').value, test: $('gdTest').checked, invitedTo: ids
+    };
+    call('saveGuest', [g], 'Saving…', function (res) { if (res && res.settings) toast('Saved ' + g.family + '.'); });
+  });
+  $('importDlg').addEventListener('close', function () {
+    if ($('importDlg').returnValue !== 'add' || !$('importText').value.trim()) return;
+    call('importGuests', [$('importText').value, $('importTest').checked], 'Adding families…');
+  });
+
+  function showLink(g) {
+    google.script.run.withSuccessHandler(function (url) {
+      $('ldTitle').textContent = 'RSVP link for ' + g.family;
+      $('ldUrl').value = url;
+      $('ldPreview').href = url + '&preview=1';
+      $('linkDlg').showModal();
+      $('ldUrl').select();
+    }).withFailureHandler(function (e) { toast(e.message, true); }).getLink(g.token);
+  }
+  $('ldCopy').onclick = function () {
+    var t = $('ldUrl');
+    t.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { /* blocked */ }
+    toast(ok ? 'Copied.' : 'Press Ctrl+C (or ⌘C) to copy.');
+  };
+
+  /* ---------------------------------------------------------- settings */
+
+  function settings() {
+    var h = '<div class="card" id="setCard"><h2>Sending</h2>' +
+      field('Email Sender Name', 'Sender name guests see in their inbox', 'text') +
+      field('Reply-To Address', 'Replies go to (optional)', 'text', 'Where a guest\'s "Reply" goes. Leave blank to use ' + esc(D.owner) + '.') +
+      field('Send From Alias', 'Send from a different address (optional)', 'text', 'Must already be set up in Gmail under Settings → Accounts → Send mail as.') +
+      field('Notify Me Of Replies', 'Email me each time a family replies (optional)', 'text', 'Your address, or leave blank.') +
+      '<div class="checks" style="margin-top:12px"><label><input type="checkbox" data-key="Send Confirmation To Guests"' +
+      (/^true$/i.test(D.settings['Send Confirmation To Guests']) ? ' checked' : '') + '> Send each family a thank-you email after they reply</label></div>' +
+      '<div class="hint">Each thank-you uses one email from your daily limit.</div>' +
+      '<h3>Testing</h3>' +
+      field('Test Inboxes', 'Test inboxes for previews', 'text', 'Addresses you control at Gmail, Outlook, Yahoo, iCloud… plus one from mail-tester.com for a spam score. Separate with commas.') +
+      '<h3>Web addresses</h3>' +
+      field('RSVP Page URL', 'RSVP page address', 'text', 'The Web app URL of the deployment with <b>Who has access: Anyone</b>. Ends in /exec.') +
+      field('Dashboard URL', 'This dashboard\'s address', 'text', 'The Web app URL of the deployment with <b>Who has access: Only myself</b>. Used for the link in reply notifications and the Sheet\'s menu.') +
+      '<div class="row" style="margin-top:16px"><button class="btn" id="saveSet">Save</button></div></div>' +
+      '<div class="card"><h2>Account</h2><p>Emails are sent from <b>' + esc(D.owner) + '</b>. Gmail allows about <b>' + D.quota + '</b> more today.</p>' +
+      '<p>Everything is stored in <a target="_blank" href="' + esc(D.sheetUrl) + '">your Google Sheet</a>: the Guests, Sub-events (Events tab), ' +
+      'Responses, Summary and a Log of every email.</p></div>';
+    return h;
+  }
+
+  function wireSettings() {
+    $('saveSet').onclick = function () { call('saveSettings', [collect($('setCard'))], 'Saving…', function () { toast('Saved.'); }); };
+  }
+
+  /* -------------------------------------------------------------- start */
+
+  google.script.run
+    .withSuccessHandler(function (d) { D = d; render(); })
+    .withFailureHandler(function (e) { $('main').innerHTML = '<div class="card"><h2>Couldn\'t load</h2><p>' + esc(e.message) + '</p></div>'; })
+    .getDashboard();
+</script>
+</body>
+</html>

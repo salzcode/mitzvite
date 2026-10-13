@@ -35,6 +35,7 @@
     .done .big { font-size: 22px; color: #1f2a44; margin: 8px 0; }
     .summary { text-align: left; font: 15px Arial, sans-serif; margin: 16px auto; max-width: 360px; }
     .summary div { padding: 6px 0; border-bottom: 1px solid #f0e8d8; }
+    .hero { display: block; width: calc(100% + 40px); margin: -24px -20px 18px; border-radius: 10px 10px 0 0; }
     .link { background: none; color: #1f2a44; text-decoration: underline; font-weight: normal; width: auto; padding: 4px; }
   </style>
 </head>
@@ -49,7 +50,8 @@
     return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function header() {
-    return '<div class="kicker">Bar Mitzvah</div><h1>' + esc(M.child) + '</h1>';
+    return (M.image ? '<img class="hero" alt="" src="' + M.image + '">' : '') +
+      (M.heading ? '<div class="kicker">' + esc(M.heading) + '</div>' : '') + '<h1>' + esc(M.child) + '</h1>';
   }
 
   function renderForm() {
@@ -65,7 +67,7 @@
          'Please let us know which events you can join' + (M.deadline ? ', by ' + esc(M.deadline) : '') + '.') + '</p>';
 
     M.events.forEach(function (ev, i) {
-      var a = M.answers[i] || {};
+      var a = M.answers[ev.id] || {};
       h += '<div class="event"><h2>' + esc(ev.name) + '</h2><div class="info">' +
         [ev.when, ev.where, ev.details].filter(Boolean).map(esc).join('<br>') + '</div>' +
         '<div class="choices">' +
@@ -84,7 +86,7 @@
     document.getElementById('msg').value = M.message || '';
 
     M.events.forEach(function (ev, i) {
-      var a = M.answers[i] || {};
+      var a = M.answers[ev.id] || {};
       if (a.attending === true) pick(i, 'yes');
       if (a.attending === false) pick(i, 'no');
       document.getElementsByName('a' + i).forEach(function (r) {
@@ -103,11 +105,11 @@
 
   function submit() {
     var err = document.getElementById('err');
-    var answers = [];
+    var answers = {};
     for (var i = 0; i < M.events.length; i++) {
       var r = document.querySelector('input[name="a' + i + '"]:checked');
       if (!r) { err.textContent = 'Please answer for "' + M.events[i].name + '".'; return; }
-      answers.push({ attending: r.value === 'yes', count: r.value === 'yes' ? parseInt(document.getElementById('s' + i).value, 10) : 0 });
+      answers[M.events[i].id] = { attending: r.value === 'yes', count: r.value === 'yes' ? parseInt(document.getElementById('s' + i).value, 10) : 0 };
     }
     var msg = document.getElementById('msg').value;
     if (M.preview) { M.answers = answers; M.message = msg; renderDone(true); return; }
@@ -123,12 +125,12 @@
   }
 
   function renderDone(preview) {
-    var any = M.answers.some(function (a) { return a.attending; });
+    var any = M.events.some(function (ev) { return M.answers[ev.id] && M.answers[ev.id].attending; });
     var h = header() + '<div class="done">';
     if (preview) h += '<div class="banner">Preview — nothing was saved.</div>';
     h += '<div class="big">' + (any ? 'Thank you — we can\'t wait to celebrate with you!' : 'Thank you for letting us know. You\'ll be missed!') + '</div>';
     h += '<div class="summary">' + M.events.map(function (ev, i) {
-      var a = M.answers[i];
+      var a = M.answers[ev.id] || {};
       return '<div><b>' + esc(ev.name) + '</b><br>' + (a.attending ? 'Yes — ' + a.count + (a.count === 1 ? ' guest' : ' guests') : 'Not attending') + '</div>';
     }).join('') + '</div>';
     h += '<p class="muted">You can come back to this page with the same link to change your answers.</p>' +

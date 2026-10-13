@@ -1,100 +1,86 @@
 # Bar Mitzvah invitations & RSVPs
 
-This runs in a Google Sheet and sends its emails from your Gmail account. It's a Google Apps Script, so it needs no server, hosting or paid service.
+A small website for sending the invitations and collecting RSVPs. It runs on Google Apps Script inside a Google Sheet and sends from your own Gmail account, so there's no server, hosting or paid service.
 
-- **Guests sheet:** one row per family, with their email(s) and the most guests they can RSVP for.
-- **Invitations:** each family gets an email from your Gmail with the three events and a personal **RSVP now** button.
-- **RSVP page:** for each event the family picks *Joyfully accept* or *Regretfully decline*, and if they accept, how many of them will come. They can also leave a note. Using the same link again lets them change their answers.
-- **Responses** go straight into the family's row. The **Summary** sheet shows the headcount for each event and who hasn't replied yet.
-- **Reminders** go only to families who were invited and haven't replied.
-- **Testing:** "Test Mode" plus preview emails let you check delivery to Gmail, Outlook, Yahoo and others before any real guest gets anything.
+It has two web pages, both hosted by Google:
+
+- **The dashboard, which is only for you.** Google signs you in, and nobody else can open it. From here you:
+  - design the invitation: upload a picture, then write the heading, the message and the reminder and thank-you emails, with a live preview;
+  - add, edit and reorder the **sub-events** (Friday dinner, the service, the party…);
+  - manage the **guest list**: one row per family, with a tick box per sub-event to choose which ones each family is invited to;
+  - send previews, invitations and reminders, and see the headcount for each sub-event as replies come in.
+- **The RSVP page, for guests.** Each family's email has a personal link. The page shows only the sub-events that family is invited to. For each one they pick *Joyfully accept* or *Regretfully decline* and say how many are coming. They can come back with the same link to change their answers.
+
+All the data lives in your Google Sheet, in tabs you can read and edit: **Settings**, **Events**, **Guests**, **Responses**, **Summary** and **Log**.
 
 ---
 
-## 1. One-time setup (about 15 minutes)
+## 1. One-time setup (about 20 minutes)
 
-1. Sign in to the **Gmail account the invitations should come from**, then go to <https://sheets.new> to create a new spreadsheet. Name it something like "Bar Mitzvah Guests".
+1. Sign in to the **Gmail account the invitations should come from**. Go to <https://sheets.new> to create a spreadsheet, and name it something like "Bar Mitzvah Guests".
 2. In the spreadsheet, open **Extensions → Apps Script**.
-3. In the editor:
+3. In the editor, add the three files:
    - Replace everything in `Code.gs` with the contents of [`Code.gs`](Code.gs).
-   - Click **+ → HTML**, name the file `Rsvp` (the editor adds `.html`) and paste in the contents of [`Rsvp.html`](Rsvp.html).
+   - Click **+ → HTML** and name the file `Dashboard` (the editor adds `.html`). Paste in the contents of [`Dashboard.html`](Dashboard.html).
+   - Click **+ → HTML** again, name it `Rsvp`, and paste in the contents of [`Rsvp.html`](Rsvp.html).
    - Click 💾 **Save**.
-4. In the function dropdown at the top, pick **`setup`** and click **▶ Run**. Google will ask for permissions:
+4. In the function dropdown at the top, pick **`setup`** and click **▶ Run**. Google asks for permissions:
    **Review permissions → choose your account → Advanced → Go to (project name) → Allow**.
-   The "unverified app" warning appears because you wrote the script yourself. It's safe to continue.
-5. Go back to the spreadsheet and reload the tab. You'll see **Settings**, **Guests**, **Summary** and **Log** sheets, plus a **🎉 Bar Mitzvah** menu.
-6. **Publish the RSVP page.** In Apps Script, click **Deploy → New deployment → ⚙ → Web app** and set:
+   The "unverified app" warning appears because you wrote the script yourself, so it's safe to continue. The script asks for Sheets (your guest list), Gmail (sending), and Drive (storing the invitation picture).
+5. **Publish the RSVP page for guests.** Click **Deploy → New deployment → ⚙ → Web app** and set:
    - *Description:* `RSVP`
    - *Execute as:* **Me**
-   - *Who has access:* **Anyone**. Guests must not need a Google account.
+   - *Who has access:* **Anyone**, so guests don't need a Google account.
 
-   Click **Deploy** and copy the **Web app URL**, which ends in `/exec`.
-7. In the **Settings** sheet, paste that URL into **RSVP Page URL**.
+   Click **Deploy** and copy the **Web app URL** (it ends in `/exec`).
+6. **Publish the dashboard for yourself.** Click **Deploy → New deployment** again, choose **Web app**, and set:
+   - *Description:* `Dashboard`
+   - *Execute as:* **Me**
+   - *Who has access:* **Only myself**
 
-> **When you change the code later:** go to **Deploy → Manage deployments → ✏ Edit → Version: New version → Deploy**. This keeps the same URL, so links you already sent keep working. Don't use "New deployment", because that creates a different URL.
+   Click **Deploy**, then open the new **Web app URL**. That's your dashboard, so **bookmark it**.
+7. In the dashboard, open **Email & settings**. Paste the RSVP page address from step 5 and the dashboard address from step 6, then click **Save**.
 
-## 2. Fill in your details
+> **When the code changes later:** paste in the new files, save, then go to **Deploy → Manage deployments**. For **each** of the two deployments, click ✏ **Edit → Version: New version → Deploy**. The addresses stay the same, so links you already sent keep working. Don't use "New deployment", because that creates new addresses.
 
-**Settings sheet:** set your son's name, the hosts, the three events (name, when, where and an optional detail line), the RSVP deadline, and the sender name guests will see. Write dates exactly as you want guests to see them.
+## 2. Set it up in the dashboard
 
-You can edit the email wording freely. These placeholders get filled in automatically: `{greeting}` `{family}` `{child}` `{hosts}` `{deadline}`. The event details and the RSVP button are always added below your message.
+- **Invitation tab:** upload your picture (your printed design, a photo or a logo) and write the text. These placeholders fill in automatically: `{greeting}` `{family}` `{child}` `{hosts}` `{deadline}`. Each family's sub-events and their RSVP button are added below your message. Click **Save and update preview**, then check the preview as different families.
+- **Sub-events tab:** edit the three examples, add more, reorder them or delete them. When you add a sub-event, you choose whether every family is invited to it straight away. Leave that unticked for something only some families come to.
+- **Guest list tab:** use **+ Add a family**, or **Add many at once** to paste a list. Each line is `family name, email(s), most guests`, and you can copy those three columns straight from another spreadsheet. Then tick which sub-events each family is invited to; changes save immediately.
+  - *Greeting* is how the email opens, for example "Dear Rachel & Josh". If you leave it blank, the script uses "Dear *family name*".
+  - *Most guests* caps how many people the family can RSVP for at each sub-event.
 
-**Guests sheet:** one row per family.
-
-| Column | What to put |
-|---|---|
-| Family Name | `The Levi Family` (for you, and used in the summary) |
-| Greeting | How the email opens: `Dear Rachel & Josh`. If you leave it blank, the script uses "Dear *Family Name*". |
-| Email | One or more addresses separated by commas. Everyone listed gets the email. |
-| Max Guests | The most people this family can RSVP for at each event. |
-| Test | Tick this for your own test rows (see below). |
-
-The script fills in all the other columns: Status, the attending/count columns for each event, Message, timestamps and the token. You can add your own columns anywhere, such as address, table number or "kids' names". The script finds its columns by their header text, so don't rename the existing headers.
-
-Tip: if your list is already in another spreadsheet, paste the columns into **Guests**. Then choose **🎉 Bar Mitzvah → Set up / repair sheets** to tidy up the formatting.
+You can also edit everything directly in the Sheet. In the **Guests** tab, *Invited To* holds event IDs from the **Events** tab, such as `E1, E3`. Blank means every event.
 
 ## 3. Test before you invite anyone
 
-Gmail generally delivers well when you send from your own account. Still, check the main inboxes your guests use.
-
-**A. Inbox / spam check.**
-1. In Settings → **Test Inboxes**, list addresses you control at several providers. Include Gmail, Outlook/Hotmail, Yahoo and iCloud, and a work address if many guests use one.
-2. *Optional, recommended:* go to <https://www.mail-tester.com>, copy the address it shows you, add it to Test Inboxes, and check your score after sending. 9/10 or higher is good.
-3. Click a family row, then choose **🎉 Bar Mitzvah → Send preview to test inboxes…**. Each address gets a sample invitation and a sample reminder, marked `[Preview]`. The RSVP button in these opens the real page in **preview mode**, so nothing is saved.
-4. Look in each inbox. If a message is in Spam/Junk or Promotions, mark it *Not spam* or move it to Primary.
+**A. Inbox and spam check.**
+1. Under **Email & settings → Test inboxes**, list addresses you control at several providers: Gmail, Outlook/Hotmail, Yahoo and iCloud, plus a work address if many guests use one.
+2. *Optional but recommended:* go to <https://www.mail-tester.com>, copy the address it shows, add it to the test inboxes, and check your score after sending. 9/10 or higher is good.
+3. On **Overview**, click **Send preview to my test inboxes**. Each address gets a sample invitation and reminder marked `[Preview]`. The RSVP button in these opens the real page in preview mode, so nothing is saved.
+4. Check each inbox, including Spam/Junk and Promotions. If a message landed there, mark it *Not spam* or move it to Primary.
 
 **B. Full end-to-end test.**
-1. Keep **Test Mode = TRUE** in Settings.
-2. Add 2–3 rows for yourself, your spouse or a friend, using real addresses, and tick **Test**.
-3. Choose **Send invitations…**. With Test Mode on, only the ticked rows get emails.
-4. Open the emails, RSVP with different answers, and check the row, the **Summary** and the confirmation email. Then RSVP again to change an answer.
-5. Choose **Send reminders…**. Only test rows that haven't replied get one.
-6. When you're done, choose **Clear test rows…** to reset those rows. You can also delete them.
+1. Leave the dashboard in **TEST MODE** (the yellow button at the top).
+2. Add 2–3 families for yourself, your spouse or a friend, using real addresses. New families are marked *test* automatically while Test Mode is on.
+3. On **Overview**, click **Send invitations to everyone not yet invited**. Only test families get it.
+4. Open the emails, RSVP with different answers, and check the guest list, the Overview numbers and the thank-you email. RSVP again to change an answer.
+5. Click **Send reminders**. Only test families who haven't replied get one.
+6. Click **Clear test families' replies and sent dates** to start over, or delete them.
 
-**C. Go live:** set **Test Mode = FALSE**, then choose **Send invitations (everyone not yet invited)…**. Test rows are always skipped and not counted in live mode.
-
-## 4. Day to day
-
-| Menu item | What it does |
-|---|---|
-| Send invitations (everyone not yet invited) | Emails every family whose **Invite Sent** is empty. You can safely run it again after adding more families; it skips anyone already invited. |
-| Send invitation to selected rows | Re-sends to the rows you've selected, for example after fixing a typo in an address. |
-| Send reminders (invited, no reply yet) | Nudges everyone who hasn't answered. The **Reminders Sent** and **Last Reminder** columns track this. |
-| Get RSVP link for selected family | Shows the family's personal link so you can text or WhatsApp it to them. |
-| Refresh summary | Recalculates the Summary sheet. This also happens automatically after every send and every reply. |
-| Check email quota | Shows how many emails you can still send today. |
-
-Every send, reply and failure is recorded in the **Log** sheet. To get an email each time a family replies, put your address in **Notify Me Of Replies**.
+**C. Go live.** Click the **TEST MODE · switch to live** button. From then on, sends go to every real family, and test families are skipped and not counted.
 
 ## Good to know
 
-- **Daily limit:** a regular Gmail account can send to about **100 addresses per day** from a script. A Google Workspace account gets about 1,500. Families with two addresses count twice, and confirmation emails also count. If you hit the limit partway through, the script stops cleanly and tells you. Run the same menu item the next day and it continues where it left off. For a large list, plan to spread the invitations over 2–3 days. You can also set **Send Confirmation To Guests = FALSE** to save quota.
+- **Daily limit:** a regular Gmail account can send to about **100 addresses a day** from a script, and a Google Workspace account about 1,500. A family with two addresses counts twice, and thank-you emails count too. The dashboard shows how many sends you have left. If you hit the limit partway through, sending stops cleanly; press the same button the next day and it carries on where it stopped. For a large list, plan on 2–3 days. You can also turn off thank-you emails under **Email & settings** to save quota.
+- **Sending to particular families:** on the guest list, tick the families on the left and click **Send the invitation**. This is how you re-send after fixing an address. It sends to exactly the families you ticked, whatever the Test Mode setting.
+- **Texting a link:** **Link** on any family shows their personal RSVP link to copy into a text or WhatsApp message.
 - **Deliverability tips:**
-  - Send from an established personal Gmail rather than a brand-new account.
-  - Keep the subject natural, with no ALL CAPS or "!!!".
-  - Ask a few close family members to reply to or star the email; that helps it reach later recipients' inboxes.
-  - Don't attach large images. If you add your printed invitation design, link to it instead.
-  - The emails include a plain-text version and the visible link, which spam filters like.
-- **Sending from a different address:** to have the invitations come from an address like `cohenfamily@...`, first add it in Gmail under **Settings → Accounts → Send mail as**. Then put it in **Send From Alias**.
-- **Privacy:** each family's link contains a long random token. Only someone holding that link can see or change that family's answers. The RSVP page shows a small Google banner ("This application was created by a Google Apps Script user"); that's normal.
-- **Changing an event later:** edit Settings. The RSVP page always shows the current details. Emails already sent keep the old text.
+  - Send from an established personal Gmail account rather than a brand-new one.
+  - Keep subjects natural, with no ALL CAPS or "!!!".
+  - Ask a few close family members to reply to or star the email, which helps it reach later guests' inboxes.
+  - The dashboard shrinks your picture to 1200 pixels wide, so the email stays light. The emails also include a plain-text version and the visible link, which spam filters like.
+- **Sending from a different address:** to send from something like `cohenfamily@…`, first add it in Gmail under **Settings → Accounts → Send mail as**. Then enter it under **Email & settings**.
+- **Privacy:** only you can open the dashboard; anyone else who tries just sees the RSVP page's "couldn't find your invitation" message. Each family's link has a long random code, and only someone holding that link can see or change that family's answers. Google shows a small banner on the RSVP page ("This application was created by a Google Apps Script user"); that's normal.
+- **Changing a sub-event later:** edit it in the dashboard. The RSVP page always shows the current details, but emails already sent keep the old text. Deleting a sub-event also deletes the replies to it.

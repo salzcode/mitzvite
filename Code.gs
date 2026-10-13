@@ -1,16 +1,19 @@
 /**
  * Bar Mitzvah invitations & RSVPs — Google Sheets + Gmail (Google Apps Script).
  *
- * Lives inside the guest-list spreadsheet (Extensions > Apps Script). Emails go
- * out from the Gmail account that owns the spreadsheet; each family gets a
- * personal RSVP link to a small web page where they answer for the three events
- * and say how many of them will come to each. Answers land back in the sheet.
+ * Lives inside the guest-list spreadsheet (Extensions > Apps Script) and is
+ * published as two web apps from the same code:
+ *   - the Dashboard (Execute as: Me, Who has access: Only myself), where you
+ *     design the invitation, manage sub-events and the guest list, and send;
+ *   - the RSVP page (Execute as: Me, Who has access: Anyone), which each family
+ *     opens from the personal link in their email.
+ * Emails go out from the Gmail account that owns the spreadsheet. Everything is
+ * stored in the spreadsheet's tabs, so you can also read and edit it there.
  *
- * See README.md in this folder for the step-by-step setup.
+ * See README.md for the step-by-step setup.
  */
 
-var SHEET = { SETTINGS: 'Settings', GUESTS: 'Guests', SUMMARY: 'Summary', LOG: 'Log' };
-var EVENT_COUNT = 3;
+var SHEET = { SETTINGS: 'Settings', EVENTS: 'Events', GUESTS: 'Guests', RESPONSES: 'Responses', SUMMARY: 'Summary', LOG: 'Log' };
 
 // Guest list columns. The script finds columns by their header text, so you can
 // reorder them or add your own columns (address, table, notes...) freely.
@@ -19,75 +22,71 @@ var COL = {
   GREETING: 'Greeting',
   EMAIL: 'Email',
   MAX: 'Max Guests',
+  INVITED_TO: 'Invited To',
   TEST: 'Test',
   STATUS: 'Status',
+  MESSAGE: 'Message From Guest',
+  RESPONDED: 'Responded At',
   INVITE_SENT: 'Invite Sent',
   REMINDERS: 'Reminders Sent',
   LAST_REMINDER: 'Last Reminder',
-  RESPONDED: 'Responded At',
-  MESSAGE: 'Message From Guest',
   TOKEN: 'RSVP Token'
 };
-function attendingCol_(i) { return 'Event ' + i + ' Attending'; }
-function countCol_(i) { return 'Event ' + i + ' Count'; }
-
-function guestHeaders_() {
-  var h = [COL.FAMILY, COL.GREETING, COL.EMAIL, COL.MAX, COL.TEST, COL.STATUS];
-  for (var i = 1; i <= EVENT_COUNT; i++) h.push(attendingCol_(i), countCol_(i));
-  return h.concat([COL.MESSAGE, COL.RESPONDED, COL.INVITE_SENT, COL.REMINDERS, COL.LAST_REMINDER, COL.TOKEN]);
-}
+var GUEST_HEADERS = [COL.FAMILY, COL.GREETING, COL.EMAIL, COL.MAX, COL.INVITED_TO, COL.TEST, COL.STATUS, COL.MESSAGE,
+  COL.RESPONDED, COL.INVITE_SENT, COL.REMINDERS, COL.LAST_REMINDER, COL.TOKEN];
+var EVENT_HEADERS = ['ID', 'Name', 'When', 'Where', 'Details'];
+var RESPONSE_HEADERS = ['RSVP Token', 'Family', 'Event ID', 'Event', 'Attending', 'Count', 'Updated'];
 
 var STATUS = { NEW: 'Not invited yet', INVITED: 'Invited – awaiting reply', REPLIED: 'Replied' };
 
 // [setting, default value, help text]
 var SETTINGS_SPEC = [
-  ['Child Name', 'Noah', 'Used in emails and on the RSVP page.'],
+  ['Child Name', 'Noah', 'Shown large at the top of the invitation and the RSVP page.'],
   ['Hosts', 'Sarah & David Cohen', 'Who the invitation is from.'],
-  ['Event 1 Name', 'Shabbat Morning Service', ''],
-  ['Event 1 When', 'Saturday, March 6, 2027 · 9:30 AM', 'Free text, written exactly as you want guests to see it.'],
-  ['Event 1 Where', 'Temple Beth Shalom, 123 Main St', ''],
-  ['Event 1 Details', 'Kiddush lunch to follow.', 'Optional extra line.'],
-  ['Event 2 Name', 'Friday Night Dinner', ''],
-  ['Event 2 When', 'Friday, March 5, 2027 · 7:00 PM', ''],
-  ['Event 2 Where', 'Our home', ''],
-  ['Event 2 Details', '', ''],
-  ['Event 3 Name', 'Celebration Party', ''],
-  ['Event 3 When', 'Saturday, March 6, 2027 · 7:00 PM', ''],
-  ['Event 3 Where', 'The Grand Ballroom, 456 Oak Ave', ''],
-  ['Event 3 Details', 'Dinner, dancing and dessert.', ''],
+  ['Invitation Heading', 'Bar Mitzvah', 'Small line above the name.'],
+  ['Invitation Image', '', 'Managed by the Dashboard (a Google Drive file ID). Leave blank for no picture.'],
   ['RSVP Deadline', 'February 1, 2027', 'Shown in emails and on the RSVP page.'],
   ['Invitation Subject', "You're invited to {child}'s Bar Mitzvah", 'Placeholders: {greeting} {family} {child} {hosts} {deadline}'],
-  ['Invitation Message', "{greeting},\n\nWe are thrilled to invite you to celebrate {child}'s Bar Mitzvah with us.\n\nPlease let us know which events you'll join, and how many of you will be coming, by {deadline}.\n\nWith love,\n{hosts}", 'The event details and the RSVP button are added below this automatically.'],
+  ['Invitation Message', "{greeting},\n\nWe are thrilled to invite you to celebrate {child}'s Bar Mitzvah with us.\n\nPlease let us know which events you'll join, and how many of you will be coming, by {deadline}.\n\nWith love,\n{hosts}", 'The events this family is invited to and the RSVP button are added below this automatically.'],
   ['Reminder Subject', "Reminder: please RSVP for {child}'s Bar Mitzvah", ''],
   ['Reminder Message', "{greeting},\n\nA gentle reminder: we'd love to know whether you can join us for {child}'s Bar Mitzvah. Please reply by {deadline} using the button below — it only takes a minute.\n\nWith love,\n{hosts}", ''],
   ['Confirmation Subject', "Thank you for your RSVP — {child}'s Bar Mitzvah", 'Sent to the family after they reply.'],
+  ['Confirmation Message', '{greeting},\n\nThank you for letting us know! Here is what we have for you:', ''],
   ['Send Confirmation To Guests', 'TRUE', 'TRUE/FALSE. Each confirmation uses one email from your daily quota.'],
   ['Notify Me Of Replies', '', 'Your email address to get a note each time a family replies (leave blank for none).'],
   ['Email Sender Name', 'Sarah & David Cohen', 'The name guests see in their inbox.'],
   ['Send From Alias', '', 'Optional: a "Send mail as" address already set up in this Gmail account.'],
   ['Reply-To Address', '', 'Optional: where guests\' email replies go (default: this Gmail account).'],
-  ['RSVP Page URL', '', 'Paste the Web app URL here after Deploy (ends in /exec).'],
-  ['Test Mode', 'TRUE', 'TRUE: bulk sends only go to rows with Test ticked. Set to FALSE to go live.'],
-  ['Test Inboxes', '', 'Comma-separated addresses for "Send preview to test inboxes" (Gmail, Outlook, Yahoo, iCloud, mail-tester.com...).']
+  ['RSVP Page URL', '', 'The Web app URL of the RSVP deployment (Who has access: Anyone). Ends in /exec.'],
+  ['Dashboard URL', '', 'The Web app URL of the Dashboard deployment (Who has access: Only myself).'],
+  ['Test Mode', 'TRUE', 'TRUE: bulk sends only go to families marked Test. Set to FALSE to go live.'],
+  ['Test Inboxes', '', 'Comma-separated addresses for preview emails (Gmail, Outlook, Yahoo, iCloud, mail-tester.com...).']
+];
+
+var DEFAULT_EVENTS = [
+  ['E1', 'Friday Night Dinner', 'Friday, March 5, 2027 · 7:00 PM', 'Our home', ''],
+  ['E2', 'Shabbat Morning Service', 'Saturday, March 6, 2027 · 9:30 AM', 'Temple Beth Shalom, 123 Main St', 'Kiddush lunch to follow.'],
+  ['E3', 'Celebration Party', 'Saturday, March 6, 2027 · 7:00 PM', 'The Grand Ballroom, 456 Oak Ave', 'Dinner, dancing and dessert.']
 ];
 
 /* ------------------------------------------------------------------ menu */
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('🎉 Bar Mitzvah')
-    .addItem('Send preview to test inboxes…', 'menuSendPreview')
-    .addItem('Get RSVP link for selected family', 'menuShowLink')
-    .addSeparator()
-    .addItem('Send invitations (everyone not yet invited)…', 'menuSendInvitations')
-    .addItem('Send invitation to selected rows…', 'menuSendInvitationsToSelected')
-    .addItem('Send reminders (invited, no reply yet)…', 'menuSendReminders')
-    .addSeparator()
+    .addItem('Open the dashboard', 'menuOpenDashboard')
     .addItem('Refresh summary', 'refreshSummary')
-    .addItem('Clear test rows (replies & sent dates)…', 'menuResetTestRows')
-    .addItem('Check email quota', 'menuQuota')
     .addSeparator()
     .addItem('Set up / repair sheets', 'setup')
     .addToUi();
+}
+
+function menuOpenDashboard() {
+  var url = getSettings_()['Dashboard URL'];
+  var ui = SpreadsheetApp.getUi();
+  if (!url) { ui.alert('Publish the Dashboard first and paste its URL into Settings > "Dashboard URL" (see README, step 1).'); return; }
+  ui.showModalDialog(HtmlService.createHtmlOutput(
+    '<div style="font:15px Arial;padding:8px"><a href="' + esc_(url) + '" target="_blank" style="font-size:18px">Open the dashboard ↗</a>' +
+    '<p style="color:#777">Tip: bookmark it.</p></div>').setWidth(320).setHeight(120), 'Dashboard');
 }
 
 /* ----------------------------------------------------------------- setup */
@@ -110,17 +109,18 @@ function setup() {
   st.getRange(2, 3, st.getLastRow() - 1, 1).setFontColor('#777').setWrap(true);
   st.setFrozenRows(1);
 
-  // Guests: create, or append any missing columns to the right.
-  var g = ss.getSheetByName(SHEET.GUESTS) || ss.insertSheet(SHEET.GUESTS, 1);
-  var want = guestHeaders_();
-  if (g.getLastColumn() === 0) {
-    g.getRange(1, 1, 1, want.length).setValues([want]);
-  } else {
-    var have = g.getRange(1, 1, 1, g.getLastColumn()).getValues()[0];
-    want.forEach(function (h) {
-      if (have.indexOf(h) === -1) { g.getRange(1, g.getLastColumn() + 1).setValue(h); have.push(h); }
-    });
+  var ev = ss.getSheetByName(SHEET.EVENTS) || ss.insertSheet(SHEET.EVENTS, 1);
+  if (ev.getLastRow() === 0) {
+    ev.getRange(1, 1, 1, EVENT_HEADERS.length).setValues([EVENT_HEADERS]);
+    ev.getRange(2, 1, DEFAULT_EVENTS.length, EVENT_HEADERS.length).setValues(DEFAULT_EVENTS);
   }
+  ev.getRange(1, 1, 1, EVENT_HEADERS.length).setFontWeight('bold').setBackground('#f3e8d0');
+  ev.setFrozenRows(1);
+  ev.setColumnWidth(2, 220); ev.setColumnWidth(3, 260); ev.setColumnWidth(4, 260); ev.setColumnWidth(5, 260);
+
+  // Guests: create, or append any missing columns to the right.
+  var g = ss.getSheetByName(SHEET.GUESTS) || ss.insertSheet(SHEET.GUESTS, 2);
+  ensureHeaders_(g, GUEST_HEADERS);
   var hdr = headerMap_(g);
   g.getRange(1, 1, 1, g.getLastColumn()).setFontWeight('bold').setBackground('#d9ead3').setWrap(true);
   g.setFrozenRows(1);
@@ -137,10 +137,18 @@ function setup() {
   g.setColumnWidth(hdr[COL.STATUS] + 1, 170);
   if (g.getRange(1, 1).getNote() === '') {
     g.getRange(1, 1).setNote('One row per family. Email can hold several addresses separated by commas. ' +
-      'Greeting is how the email opens, e.g. "Dear Rachel & Josh". Max Guests caps how many they can RSVP for.');
+      'Greeting is how the email opens, e.g. "Dear Rachel & Josh". Max Guests caps how many they can RSVP for. ' +
+      'Invited To lists event IDs from the Events tab (e.g. E1, E3); leave it blank to invite the family to every event.');
   }
 
-  if (!ss.getSheetByName(SHEET.SUMMARY)) ss.insertSheet(SHEET.SUMMARY, 2);
+  var r = ss.getSheetByName(SHEET.RESPONSES) || ss.insertSheet(SHEET.RESPONSES, 3);
+  ensureHeaders_(r, RESPONSE_HEADERS);
+  r.getRange(1, 1, 1, RESPONSE_HEADERS.length).setFontWeight('bold').setBackground('#d9ead3');
+  r.setFrozenRows(1);
+  r.getRange('G:G').setNumberFormat('yyyy-mm-dd hh:mm');
+  r.getRange('A:A').setFontColor('#999');
+
+  if (!ss.getSheetByName(SHEET.SUMMARY)) ss.insertSheet(SHEET.SUMMARY, 4);
   var log = ss.getSheetByName(SHEET.LOG) || ss.insertSheet(SHEET.LOG);
   if (log.getLastRow() === 0) {
     log.appendRow(['When', 'What', 'Family', 'To', 'Result']);
@@ -152,7 +160,15 @@ function setup() {
   if (def && def.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(def);
 
   refreshSummary();
-  toast_('Sheets are ready. Fill in Settings, then add families to Guests.');
+  toast_('Sheets are ready. Next: publish the Dashboard and RSVP page (README step 1).');
+}
+
+function ensureHeaders_(sheet, want) {
+  if (sheet.getLastColumn() === 0) { sheet.getRange(1, 1, 1, want.length).setValues([want]); return; }
+  var have = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
+  want.forEach(function (h) {
+    if (have.indexOf(h) === -1) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h); have.push(h); }
+  });
 }
 
 /* --------------------------------------------------------------- helpers */
@@ -162,8 +178,14 @@ function ss_() {
   try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { /* web app context */ }
   if (ss) return ss;
   var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  if (!id) throw new Error('Run "Set up / repair sheets" from the spreadsheet menu first.');
+  if (!id) throw new Error('Run "setup" from the Apps Script editor (or "Set up / repair sheets" in the spreadsheet menu) first.');
   return SpreadsheetApp.openById(id);
+}
+
+function sheet_(name) {
+  var sh = ss_().getSheetByName(name);
+  if (!sh) throw new Error('No "' + name + '" sheet. Run "Set up / repair sheets" first.');
+  return sh;
 }
 
 function headerMap_(sheet) {
@@ -171,6 +193,20 @@ function headerMap_(sheet) {
   var map = {};
   row.forEach(function (h, i) { if (h !== '') map[String(h).trim()] = i; });
   return map;
+}
+
+function str_(v) { return v == null ? '' : String(v).trim(); }
+function isTrue_(v) { return v === true || /^(true|yes|y|1|✓)$/i.test(String(v).trim()); }
+
+/** Only the spreadsheet's owner may use the dashboard functions. */
+function isOwner_() {
+  var me = '', owner = '';
+  try { me = Session.getActiveUser().getEmail(); } catch (e) { /* anonymous */ }
+  try { owner = Session.getEffectiveUser().getEmail(); } catch (e) { /* none */ }
+  return !!me && me.toLowerCase() === String(owner).toLowerCase();
+}
+function requireOwner_() {
+  if (!isOwner_()) throw new Error('Only the owner of this invitation list can do that.');
 }
 
 function getSettings_() {
@@ -186,75 +222,94 @@ function getSettings_() {
     });
   }
   s.testMode = isTrue_(s['Test Mode']);
-  s.events = [];
-  for (var i = 1; i <= EVENT_COUNT; i++) {
-    s.events.push({
-      name: s['Event ' + i + ' Name'], when: s['Event ' + i + ' When'],
-      where: s['Event ' + i + ' Where'], details: s['Event ' + i + ' Details']
-    });
-  }
   return s;
 }
 
-function isTrue_(v) { return v === true || /^(true|yes|y|1|✓)$/i.test(String(v).trim()); }
+function readEvents_() {
+  var sh = sheet_(SHEET.EVENTS);
+  var hdr = headerMap_(sh);
+  var last = sh.getLastRow();
+  if (last < 2) return [];
+  var out = [];
+  sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues().forEach(function (v, i) {
+    var ev = { row: i + 2, id: str_(v[hdr.ID]), name: str_(v[hdr.Name]), when: str_(v[hdr.When]), where: str_(v[hdr.Where]), details: str_(v[hdr.Details]) };
+    if (ev.id || ev.name) out.push(ev);
+  });
+  return out;
+}
 
-function guestsSheet_() {
-  var g = ss_().getSheetByName(SHEET.GUESTS);
-  if (!g) throw new Error('No "Guests" sheet. Run "Set up / repair sheets" first.');
-  return g;
+/** Reads every reply, keyed by token then event ID. */
+function readResponses_() {
+  var sh = sheet_(SHEET.RESPONSES);
+  var map = {};
+  if (sh.getLastRow() < 2) return map;
+  sh.getRange(2, 1, sh.getLastRow() - 1, RESPONSE_HEADERS.length).getValues().forEach(function (v) {
+    var t = str_(v[0]);
+    if (!t) return;
+    (map[t] = map[t] || {})[str_(v[2])] = { attending: /^yes$/i.test(str_(v[4])), count: parseInt(v[5], 10) || 0 };
+  });
+  return map;
 }
 
 /** Reads every family row as an object; `row` is the sheet row number. */
-function readGuests_() {
-  var g = guestsSheet_();
+function readGuests_(events) {
+  var g = sheet_(SHEET.GUESTS);
   var hdr = headerMap_(g);
-  var missing = guestHeaders_().filter(function (h) { return !(h in hdr); });
+  var missing = GUEST_HEADERS.filter(function (h) { return !(h in hdr); });
   if (missing.length) throw new Error('Guests sheet is missing columns: ' + missing.join(', ') + '. Run "Set up / repair sheets".');
+  events = events || readEvents_();
+  var allIds = events.map(function (e) { return e.id; });
+  var responses = readResponses_();
   var last = g.getLastRow();
-  if (last < 2) return { sheet: g, hdr: hdr, list: [] };
-  var values = g.getRange(2, 1, last - 1, g.getLastColumn()).getValues();
   var list = [];
-  values.forEach(function (v, i) {
-    if (String(v[hdr[COL.FAMILY]]).trim() === '' && String(v[hdr[COL.EMAIL]]).trim() === '') return;
-    var max = parseInt(v[hdr[COL.MAX]], 10);
-    var gst = {
-      row: i + 2,
-      family: String(v[hdr[COL.FAMILY]]).trim(),
-      greeting: String(v[hdr[COL.GREETING]]).trim(),
-      emails: String(v[hdr[COL.EMAIL]]).split(/[,;\s]+/).map(function (e) { return e.trim(); }).filter(String),
-      max: isNaN(max) || max < 1 ? 1 : max,
-      test: isTrue_(v[hdr[COL.TEST]]),
-      inviteSent: v[hdr[COL.INVITE_SENT]],
-      reminders: parseInt(v[hdr[COL.REMINDERS]], 10) || 0,
-      responded: v[hdr[COL.RESPONDED]],
-      status: String(v[hdr[COL.STATUS]]).trim(),
-      token: String(v[hdr[COL.TOKEN]]).trim(),
-      message: String(v[hdr[COL.MESSAGE]]),
-      answers: []
-    };
-    for (var e = 1; e <= EVENT_COUNT; e++) {
-      var a = String(v[hdr[attendingCol_(e)]]).trim();
-      gst.answers.push({ attending: a === '' ? null : /^yes$/i.test(a), count: parseInt(v[hdr[countCol_(e)]], 10) || 0 });
-    }
-    if (!gst.greeting) gst.greeting = 'Dear ' + (gst.family || 'friends');
-    list.push(gst);
-  });
-  return { sheet: g, hdr: hdr, list: list };
+  if (last >= 2) {
+    g.getRange(2, 1, last - 1, g.getLastColumn()).getValues().forEach(function (v, i) {
+      if (str_(v[hdr[COL.FAMILY]]) === '' && str_(v[hdr[COL.EMAIL]]) === '') return;
+      var max = parseInt(v[hdr[COL.MAX]], 10);
+      var inv = str_(v[hdr[COL.INVITED_TO]]);
+      var gst = {
+        row: i + 2,
+        family: str_(v[hdr[COL.FAMILY]]),
+        greetingRaw: str_(v[hdr[COL.GREETING]]),
+        emails: String(v[hdr[COL.EMAIL]]).split(/[,;\s]+/).map(function (e) { return e.trim(); }).filter(String),
+        max: isNaN(max) || max < 1 ? 1 : max,
+        allEvents: inv === '',
+        invitedTo: inv === '' ? allIds.slice() : inv.split(/[,;\s]+/).filter(function (id) { return allIds.indexOf(id) !== -1; }),
+        test: isTrue_(v[hdr[COL.TEST]]),
+        status: str_(v[hdr[COL.STATUS]]),
+        message: str_(v[hdr[COL.MESSAGE]]),
+        responded: v[hdr[COL.RESPONDED]] || '',
+        inviteSent: v[hdr[COL.INVITE_SENT]] || '',
+        reminders: parseInt(v[hdr[COL.REMINDERS]], 10) || 0,
+        lastReminder: v[hdr[COL.LAST_REMINDER]] || '',
+        token: str_(v[hdr[COL.TOKEN]])
+      };
+      gst.answers = (gst.token && responses[gst.token]) || {};
+      gst.greeting = gst.greetingRaw || 'Dear ' + (gst.family || 'friends');
+      list.push(gst);
+    });
+  }
+  return { sheet: g, hdr: hdr, list: list, events: events };
+}
+
+function eventsFor_(guest, events) {
+  return events.filter(function (e) { return guest.invitedTo.indexOf(e.id) !== -1; });
 }
 
 function setCell_(sheet, hdr, row, col, value) { sheet.getRange(row, hdr[col] + 1).setValue(value); }
 
+function newToken_() { return Utilities.getUuid().replace(/-/g, ''); }
+
 function ensureToken_(data, guest) {
   if (guest.token) return guest.token;
-  guest.token = Utilities.getUuid().replace(/-/g, '');
+  guest.token = newToken_();
   setCell_(data.sheet, data.hdr, guest.row, COL.TOKEN, guest.token);
   return guest.token;
 }
 
 function rsvpUrl_(settings, token, preview) {
   var base = settings['RSVP Page URL'];
-  if (!base) { try { base = ScriptApp.getService().getUrl(); } catch (e) { base = ''; } }
-  if (!base) throw new Error('Deploy the web app and paste its URL into Settings > "RSVP Page URL" first (see README).');
+  if (!base) throw new Error('Publish the RSVP page and paste its URL into Settings first (see README, step 1).');
   return base + (base.indexOf('?') === -1 ? '?' : '&') + 't=' + encodeURIComponent(token) + (preview ? '&preview=1' : '');
 }
 
@@ -280,29 +335,45 @@ function toast_(msg) {
   try { SpreadsheetApp.getActiveSpreadsheet().toast(msg, 'Bar Mitzvah', 8); } catch (e) { /* no UI */ }
 }
 
+/** The invitation picture as a blob, or null. Cached for the length of one run. */
+var imageCache_;
+function imageBlob_(s) {
+  if (imageCache_ !== undefined) return imageCache_;
+  imageCache_ = null;
+  var id = s['Invitation Image'];
+  if (id) { try { imageCache_ = DriveApp.getFileById(id).getBlob(); } catch (e) { imageCache_ = null; } }
+  return imageCache_;
+}
+function imageDataUrl_(s) {
+  var b = imageBlob_(s);
+  return b ? 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()) : '';
+}
+
 /* ---------------------------------------------------------------- emails */
 
-/** kind: 'invite' | 'reminder' | 'confirm' */
-function buildEmail_(kind, guest, s, url) {
+/**
+ * kind: 'invite' | 'reminder' | 'confirm'. imgSrc is "cid:invite" for real
+ * emails (the picture travels inline) or a data: URL for on-screen previews.
+ */
+function buildEmail_(kind, guest, s, events, url, imgSrc) {
   var subjectKey = { invite: 'Invitation Subject', reminder: 'Reminder Subject', confirm: 'Confirmation Subject' }[kind];
+  var msgKey = { invite: 'Invitation Message', reminder: 'Reminder Message', confirm: 'Confirmation Message' }[kind];
   var subject = fill_(s[subjectKey], guest, s);
-  var intro = kind === 'confirm'
-    ? guest.greeting + ',\n\nThank you for letting us know! Here is what we have for you:'
-    : fill_(kind === 'invite' ? s['Invitation Message'] : s['Reminder Message'], guest, s);
+  var intro = fill_(s[msgKey], guest, s);
+  var mine = eventsFor_(guest, events);
 
   var text = intro + '\n\n';
   var rows = '';
-  s.events.forEach(function (ev, i) {
-    var line = ev.name;
+  mine.forEach(function (ev) {
+    var reply = '';
     if (kind === 'confirm') {
-      var a = guest.answers[i];
-      line += a.attending ? ' — Yes, ' + a.count + (a.count === 1 ? ' guest' : ' guests') : ' — Unable to attend';
+      var a = guest.answers[ev.id];
+      reply = !a ? 'No answer' : a.attending ? 'Yes, ' + a.count + (a.count === 1 ? ' guest' : ' guests') : 'Unable to attend';
     }
-    text += '• ' + line + '\n  ' + [ev.when, ev.where, ev.details].filter(String).join('\n  ') + '\n\n';
+    text += '• ' + ev.name + (reply ? ' — ' + reply : '') + '\n  ' + [ev.when, ev.where, ev.details].filter(String).join('\n  ') + '\n\n';
     rows += '<tr><td style="padding:14px 18px;border-top:1px solid #eadfca">' +
       '<div style="font-size:17px;font-weight:bold;color:#1f2a44">' + esc_(ev.name) + '</div>' +
-      (kind === 'confirm' ? '<div style="margin:2px 0 4px;font-weight:bold;color:' + (guest.answers[i].attending ? '#2e7d32' : '#9e3b3b') + '">' +
-        esc_(line.slice(ev.name.length + 3)) + '</div>' : '') +
+      (reply ? '<div style="margin:2px 0 4px;font-weight:bold;color:' + (/^Yes/.test(reply) ? '#2e7d32' : '#9e3b3b') + '">' + esc_(reply) + '</div>' : '') +
       [ev.when, ev.where, ev.details].filter(String).map(function (t) {
         return '<div style="color:#555;font-size:14px;line-height:1.5">' + esc_(t) + '</div>';
       }).join('') + '</td></tr>';
@@ -314,9 +385,10 @@ function buildEmail_(kind, guest, s, url) {
 
   var html =
     '<div style="background:#f7f2e8;padding:24px 10px;font-family:Georgia,\'Times New Roman\',serif">' +
-    '<table role="presentation" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:10px;border:1px solid #eadfca">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;margin:0 auto;background:#ffffff;border-radius:10px;border:1px solid #eadfca">' +
+    (imgSrc ? '<tr><td style="padding:0"><img src="' + esc_(imgSrc) + '" alt="" width="560" style="display:block;width:100%;max-width:560px;height:auto;border-radius:10px 10px 0 0"></td></tr>' : '') +
     '<tr><td style="padding:28px 24px 8px;text-align:center">' +
-    '<div style="letter-spacing:3px;color:#b08d3c;font-size:12px;text-transform:uppercase">Bar Mitzvah</div>' +
+    (s['Invitation Heading'] ? '<div style="letter-spacing:3px;color:#b08d3c;font-size:12px;text-transform:uppercase">' + esc_(s['Invitation Heading']) + '</div>' : '') +
     '<div style="font-size:28px;color:#1f2a44;margin-top:6px">' + esc_(s['Child Name']) + '</div></td></tr>' +
     '<tr><td style="padding:12px 24px 18px;font-size:16px;line-height:1.6;color:#333">' +
     esc_(intro).replace(/\n/g, '<br>') + '</td></tr>' +
@@ -335,6 +407,8 @@ function send_(to, mail, s) {
   var opts = { htmlBody: mail.html, name: s['Email Sender Name'] || s['Hosts'] };
   if (s['Reply-To Address']) opts.replyTo = s['Reply-To Address'];
   if (s['Send From Alias']) opts.from = s['Send From Alias'];
+  var img = imageBlob_(s);
+  if (img && mail.html.indexOf('cid:invite') !== -1) opts.inlineImages = { invite: img };
   GmailApp.sendEmail(to, mail.subject, mail.text, opts);
 }
 
@@ -345,13 +419,14 @@ function send_(to, mail, s) {
  */
 function sendBatch_(kind, guests, data, s) {
   var sent = 0, failed = [], skipped = 0;
+  var img = imageBlob_(s) ? 'cid:invite' : '';
   for (var i = 0; i < guests.length; i++) {
     var g = guests[i];
     if (!g.emails.length) { failed.push(g.family + ' (no email)'); continue; }
+    if (!eventsFor_(g, data.events).length) { failed.push(g.family + ' (not invited to any event)'); continue; }
     if (MailApp.getRemainingDailyQuota() < g.emails.length) { skipped = guests.length - i; break; }
     try {
-      var mail = buildEmail_(kind, g, s, rsvpUrl_(s, ensureToken_(data, g), false));
-      send_(g.emails.join(','), mail, s);
+      send_(g.emails.join(','), buildEmail_(kind, g, s, data.events, rsvpUrl_(s, ensureToken_(data, g), false), img), s);
       var now = new Date();
       if (kind === 'invite') {
         setCell_(data.sheet, data.hdr, g.row, COL.INVITE_SENT, now);
@@ -370,129 +445,39 @@ function sendBatch_(kind, guests, data, s) {
   }
   refreshSummary();
   var msg = 'Sent ' + sent + (kind === 'invite' ? ' invitation' : ' reminder') + (sent === 1 ? '' : 's') + '.';
-  if (skipped) msg += '\n\nGmail\'s daily sending limit was reached — ' + skipped + ' famil' + (skipped === 1 ? 'y was' : 'ies were') +
-    ' not sent yet. Run the same menu item again tomorrow to continue.';
-  if (failed.length) msg += '\n\nProblems:\n' + failed.join('\n');
+  if (skipped) msg += ' Gmail\'s daily sending limit was reached, so ' + skipped + ' famil' + (skipped === 1 ? 'y was' : 'ies were') +
+    ' not sent yet. Send again tomorrow to continue.';
+  if (failed.length) msg += ' Problems: ' + failed.join('; ') + '.';
   return msg;
 }
 
 function inScope_(g, s) { return s.testMode ? g.test : !g.test; }
 
-function confirmSend_(ui, what, n, s) {
-  if (!n) { ui.alert('Nobody to send to.' + (s.testMode ? '\n\nTest Mode is ON, so only rows with "Test" ticked are included.' : '')); return false; }
-  var q = 'Send ' + what + ' to ' + n + ' famil' + (n === 1 ? 'y' : 'ies') + '?';
-  if (s.testMode) q += '\n\n(TEST MODE: only rows with "Test" ticked.)';
-  q += '\n\nEmails you can still send today: ' + MailApp.getRemainingDailyQuota();
-  return ui.alert(q, ui.ButtonSet.YES_NO) === ui.Button.YES;
-}
-
-function menuSendInvitations() {
-  var ui = SpreadsheetApp.getUi(), s = getSettings_(), data = readGuests_();
-  rsvpUrl_(s, 'x', false); // fail early if the page URL isn't set
-  var list = data.list.filter(function (g) { return inScope_(g, s) && !g.inviteSent; });
-  if (!confirmSend_(ui, 'invitations', list.length, s)) return;
-  ui.alert(sendBatch_('invite', list, data, s));
-}
-
-function menuSendInvitationsToSelected() {
-  var ui = SpreadsheetApp.getUi(), s = getSettings_(), data = readGuests_();
-  rsvpUrl_(s, 'x', false);
-  var rows = selectedRows_(data);
-  var list = data.list.filter(function (g) { return rows.indexOf(g.row) !== -1; });
-  if (!list.length) { ui.alert('Select one or more family rows on the Guests sheet first.'); return; }
-  var already = list.filter(function (g) { return g.inviteSent; }).length;
-  if (!confirmSend_(ui, 'the invitation' + (already ? ' (' + already + ' already invited — they will get it again)' : ''), list.length, s)) return;
-  ui.alert(sendBatch_('invite', list, data, s));
-}
-
-function menuSendReminders() {
-  var ui = SpreadsheetApp.getUi(), s = getSettings_(), data = readGuests_();
-  var list = data.list.filter(function (g) { return inScope_(g, s) && g.inviteSent && !g.responded; });
-  if (!confirmSend_(ui, 'a reminder', list.length, s)) return;
-  ui.alert(sendBatch_('reminder', list, data, s));
-}
-
-function selectedRows_(data) {
-  var sheet = SpreadsheetApp.getActiveSheet();
-  if (sheet.getName() !== SHEET.GUESTS) return [];
-  var rows = [];
-  sheet.getActiveRangeList().getRanges().forEach(function (r) {
-    for (var i = r.getRow(); i < r.getRow() + r.getNumRows(); i++) if (i > 1) rows.push(i);
-  });
-  return rows;
-}
-
-/** Emails a sample invitation and reminder to the Test Inboxes, with a preview link that doesn't save. */
-function menuSendPreview() {
-  var ui = SpreadsheetApp.getUi(), s = getSettings_(), data = readGuests_();
-  var to = String(s['Test Inboxes'] || Session.getActiveUser().getEmail()).split(/[,;\s]+/).filter(String);
-  if (!to.length) { ui.alert('Add some addresses to Settings > "Test Inboxes".'); return; }
-  var rows = selectedRows_(data);
-  var g = data.list.filter(function (x) { return rows.indexOf(x.row) !== -1; })[0] || data.list[0];
-  if (!g) { ui.alert('Add at least one family to the Guests sheet first (it is used as the sample).'); return; }
-  var q = 'Send a sample invitation and reminder (using "' + g.family + '") to:\n\n' + to.join('\n') +
-    '\n\nThe RSVP button in these opens a preview — answers are not saved.';
-  if (ui.alert(q, ui.ButtonSet.OK_CANCEL) !== ui.Button.OK) return;
-  var url = rsvpUrl_(s, ensureToken_(data, g), true);
-  var inv = buildEmail_('invite', g, s, url), rem = buildEmail_('reminder', g, s, url);
-  inv.subject = '[Preview] ' + inv.subject; rem.subject = '[Preview] ' + rem.subject;
-  to.forEach(function (addr) { send_(addr, inv, s); send_(addr, rem, s); log_('Preview', g, addr, 'Sent'); });
-  ui.alert('Sent. Check each inbox — and its Spam/Junk and Promotions folders.\n\n' +
-    'If one landed in spam, mark it "Not spam" and move it to the inbox; see README for more deliverability tips.');
-}
-
-function menuShowLink() {
-  var ui = SpreadsheetApp.getUi(), s = getSettings_(), data = readGuests_();
-  var rows = selectedRows_(data);
-  var g = data.list.filter(function (x) { return rows.indexOf(x.row) !== -1; })[0];
-  if (!g) { ui.alert('Click a family row on the Guests sheet first.'); return; }
-  var url = rsvpUrl_(s, ensureToken_(data, g), false);
-  var html = HtmlService.createHtmlOutput(
-    '<div style="font-family:Arial;font-size:14px">Personal RSVP link for <b>' + esc_(g.family) + '</b> ' +
-    '(you can text or WhatsApp it to them):<br><br><textarea style="width:100%;height:80px" onclick="this.select()">' +
-    esc_(url) + '</textarea><br><br><a href="' + esc_(url) + '&preview=1" target="_blank">Open a preview (doesn\'t save)</a></div>'
-  ).setWidth(480).setHeight(220);
-  ui.showModalDialog(html, 'RSVP link');
-}
-
-function menuResetTestRows() {
-  var ui = SpreadsheetApp.getUi(), data = readGuests_();
-  var list = data.list.filter(function (g) { return g.test; });
-  if (!list.length) { ui.alert('No rows have "Test" ticked.'); return; }
-  if (ui.alert('Clear the replies, sent dates and reminder counts of ' + list.length + ' test row(s)?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-  var clear = [COL.INVITE_SENT, COL.REMINDERS, COL.LAST_REMINDER, COL.RESPONDED, COL.MESSAGE];
-  for (var e = 1; e <= EVENT_COUNT; e++) clear.push(attendingCol_(e), countCol_(e));
-  list.forEach(function (g) {
-    clear.forEach(function (c) { setCell_(data.sheet, data.hdr, g.row, c, ''); });
-    setCell_(data.sheet, data.hdr, g.row, COL.STATUS, STATUS.NEW);
-  });
-  refreshSummary();
-  toast_('Test rows cleared.');
-}
-
-function menuQuota() {
-  SpreadsheetApp.getUi().alert('Emails this account can still send from the script today: ' + MailApp.getRemainingDailyQuota() +
-    '\n\n(Each address counts once. A regular Gmail account gets about 100 per day; Google Workspace about 1,500.)');
-}
-
-/* ----------------------------------------------------------- RSVP page */
+/* ------------------------------------------------------------ web pages */
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
+  var token = str_(p.t);
+  if (!token && isOwner_()) {
+    return HtmlService.createTemplateFromFile('Dashboard').evaluate()
+      .setTitle('Invitations dashboard')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  }
   var s = getSettings_();
   var data = readGuests_();
-  var token = String(p.t || '').trim();
   var g = token ? data.list.filter(function (x) { return x.token === token; })[0] : null;
+  var mine = g ? eventsFor_(g, data.events) : [];
   var model = {
     preview: p.preview === '1',
-    child: s['Child Name'], hosts: s['Hosts'], deadline: s['RSVP Deadline'],
-    events: s.events,
+    heading: s['Invitation Heading'], child: s['Child Name'], hosts: s['Hosts'], deadline: s['RSVP Deadline'],
+    image: imageDataUrl_(s),
+    events: mine.map(function (ev) { return { id: ev.id, name: ev.name, when: ev.when, where: ev.where, details: ev.details }; }),
     found: !!g,
     token: token,
     family: g ? g.family : '',
     greeting: g ? g.greeting : '',
     max: g ? g.max : 1,
-    answers: g ? g.answers : [],
+    answers: g ? g.answers : {},
     message: g ? g.message : '',
     replied: g ? !!g.responded : false
   };
@@ -503,32 +488,32 @@ function doGet(e) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-/** Called from the RSVP page. answers: [{attending: bool, count: n}, ...] */
+/** Called from the RSVP page. answers: {eventId: {attending: bool, count: n}, ...} */
 function submitRsvp(token, answers, message) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
+  var s, data, g, clean = {}, mine;
   try {
-    var s = getSettings_(), data = readGuests_();
-    var g = data.list.filter(function (x) { return x.token === String(token); })[0];
-    if (!g) throw new Error('We could not find your invitation. Please use the link from your email.');
-    if (!Array.isArray(answers) || answers.length !== EVENT_COUNT) throw new Error('Please answer for every event.');
-    var clean = answers.map(function (a, i) {
-      if (!a || typeof a.attending !== 'boolean') throw new Error('Please answer for "' + s.events[i].name + '".');
+    s = getSettings_(); data = readGuests_();
+    g = data.list.filter(function (x) { return x.token === String(token); })[0];
+    if (!g || !token) throw new Error('We could not find your invitation. Please use the link from your email.');
+    mine = eventsFor_(g, data.events);
+    if (!answers || typeof answers !== 'object') throw new Error('Please answer for every event.');
+    mine.forEach(function (ev) {
+      var a = answers[ev.id];
+      if (!a || typeof a.attending !== 'boolean') throw new Error('Please answer for "' + ev.name + '".');
       var n = a.attending ? parseInt(a.count, 10) : 0;
-      if (a.attending && (isNaN(n) || n < 1 || n > g.max)) throw new Error('Please choose how many are coming to "' + s.events[i].name + '".');
-      return { attending: a.attending, count: n };
+      if (a.attending && (isNaN(n) || n < 1 || n > g.max)) throw new Error('Please choose how many are coming to "' + ev.name + '".');
+      clean[ev.id] = { attending: a.attending, count: n };
     });
     var now = new Date();
-    clean.forEach(function (a, i) {
-      setCell_(data.sheet, data.hdr, g.row, attendingCol_(i + 1), a.attending ? 'Yes' : 'No');
-      setCell_(data.sheet, data.hdr, g.row, countCol_(i + 1), a.count);
-    });
+    writeResponses_(g, mine, clean, now);
     setCell_(data.sheet, data.hdr, g.row, COL.MESSAGE, String(message || '').slice(0, 2000));
     setCell_(data.sheet, data.hdr, g.row, COL.RESPONDED, now);
     setCell_(data.sheet, data.hdr, g.row, COL.STATUS, STATUS.REPLIED);
     SpreadsheetApp.flush();
     g.answers = clean;
-    log_('Reply', g, '', clean.map(function (a, i) { return s.events[i].name + ': ' + (a.attending ? a.count : 'no'); }).join('; '));
+    log_('Reply', g, '', mine.map(function (ev) { return ev.name + ': ' + (clean[ev.id].attending ? clean[ev.id].count : 'no'); }).join('; '));
     refreshSummary();
   } finally {
     lock.releaseLock();
@@ -537,21 +522,65 @@ function submitRsvp(token, answers, message) {
   // Emails after the lock, so a slow send never blocks another family's reply.
   var url = rsvpUrl_(s, g.token, false);
   if (isTrue_(s['Send Confirmation To Guests']) && g.emails.length && MailApp.getRemainingDailyQuota() >= g.emails.length) {
-    try { send_(g.emails.join(','), buildEmail_('confirm', g, s, url), s); log_('Confirmation', g, g.emails.join(', '), 'Sent'); }
-    catch (err) { log_('Confirmation', g, g.emails.join(', '), 'FAILED: ' + err.message); }
+    try {
+      send_(g.emails.join(','), buildEmail_('confirm', g, s, data.events, url, imageBlob_(s) ? 'cid:invite' : ''), s);
+      log_('Confirmation', g, g.emails.join(', '), 'Sent');
+    } catch (err) { log_('Confirmation', g, g.emails.join(', '), 'FAILED: ' + err.message); }
   }
   if (s['Notify Me Of Replies'] && MailApp.getRemainingDailyQuota() > 0) {
     try {
-      var body = g.family + ' replied:\n\n' + clean.map(function (a, i) {
-        return s.events[i].name + ': ' + (a.attending ? 'Yes — ' + a.count : 'No');
-      }).join('\n') + (message ? '\n\nMessage: ' + message : '') + '\n\n' + ss_().getUrl();
+      var body = g.family + ' replied:\n\n' + mine.map(function (ev) {
+        var a = clean[ev.id];
+        return ev.name + ': ' + (a.attending ? 'Yes — ' + a.count : 'No');
+      }).join('\n') + (message ? '\n\nMessage: ' + message : '') + '\n\n' + (s['Dashboard URL'] || ss_().getUrl());
       GmailApp.sendEmail(s['Notify Me Of Replies'], 'RSVP: ' + g.family, body, { name: 'RSVP tracker' });
     } catch (err) { log_('Notify', g, s['Notify Me Of Replies'], 'FAILED: ' + err.message); }
   }
   return { ok: true };
 }
 
-/* --------------------------------------------------------------- summary */
+/** Replaces this family's rows in the Responses sheet. */
+function writeResponses_(g, events, answers, when) {
+  var sh = sheet_(SHEET.RESPONSES);
+  clearResponses_(sh, g.token);
+  var rows = events.map(function (ev) {
+    var a = answers[ev.id];
+    return [g.token, g.family, ev.id, ev.name, a.attending ? 'Yes' : 'No', a.count, when];
+  });
+  if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, RESPONSE_HEADERS.length).setValues(rows);
+}
+
+function clearResponses_(sh, token) {
+  for (var r = sh.getLastRow(); r >= 2; r--) {
+    if (str_(sh.getRange(r, 1).getValue()) === token) sh.deleteRow(r);
+  }
+}
+
+/* -------------------------------------------------------------- summary */
+
+function stats_(data, s) {
+  var list = data.list.filter(function (g) { return inScope_(g, s); });
+  var invited = list.filter(function (g) { return g.inviteSent; });
+  var replied = list.filter(function (g) { return g.responded; });
+  return {
+    families: list.length,
+    invited: invited.length,
+    replied: replied.length,
+    awaiting: invited.filter(function (g) { return !g.responded; }).length,
+    notInvited: list.length - invited.length,
+    events: data.events.map(function (ev) {
+      var on = list.filter(function (g) { return g.invitedTo.indexOf(ev.id) !== -1; });
+      var yes = on.filter(function (g) { return g.answers[ev.id] && g.answers[ev.id].attending; });
+      var no = on.filter(function (g) { return g.answers[ev.id] && !g.answers[ev.id].attending; });
+      return {
+        id: ev.id, name: ev.name, invitedFamilies: on.length,
+        guests: yes.reduce(function (n, g) { return n + g.answers[ev.id].count; }, 0),
+        yes: yes.length, no: no.length, pending: on.length - yes.length - no.length,
+        maxGuests: on.reduce(function (n, g) { return n + g.max; }, 0)
+      };
+    })
+  };
+}
 
 function refreshSummary() {
   var ss = ss_(), s = getSettings_(), data = readGuests_();
@@ -559,34 +588,356 @@ function refreshSummary() {
   data.list.forEach(function (g) { // label newly added families
     if (!g.status) setCell_(data.sheet, data.hdr, g.row, COL.STATUS, g.responded ? STATUS.REPLIED : g.inviteSent ? STATUS.INVITED : STATUS.NEW);
   });
-  var list = data.list.filter(function (g) { return inScope_(g, s); });
-  var invited = list.filter(function (g) { return g.inviteSent; });
-  var replied = list.filter(function (g) { return g.responded; });
-
+  var st = stats_(data, s);
   var out = [
-    [s.testMode ? 'TEST MODE — counting only rows with Test ticked' : 'Live — test rows not counted', '', '', '', ''],
-    ['Updated', new Date(), '', '', ''],
-    ['', '', '', '', ''],
-    ['Families on the list', list.length, '', '', ''],
-    ['Invited', invited.length, '', '', ''],
-    ['Replied', replied.length, '', '', ''],
-    ['Awaiting reply', invited.length - replied.filter(function (g) { return g.inviteSent; }).length, '', '', ''],
-    ['Not invited yet', list.length - invited.length, '', '', ''],
-    ['', '', '', '', ''],
-    ['Event', 'Guests coming', 'Families yes', 'Families no', 'Families no answer yet']
+    [s.testMode ? 'TEST MODE — counting only families marked Test' : 'Live — test families not counted', '', '', '', '', ''],
+    ['Updated', new Date(), '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['Families on the list', st.families, '', '', '', ''],
+    ['Invited', st.invited, '', '', '', ''],
+    ['Replied', st.replied, '', '', '', ''],
+    ['Awaiting reply', st.awaiting, '', '', '', ''],
+    ['Not invited yet', st.notInvited, '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['Event', 'Guests coming', 'Families invited', 'Families yes', 'Families no', 'No answer yet']
   ];
-  s.events.forEach(function (ev, i) {
-    var yes = replied.filter(function (g) { return g.answers[i].attending === true; });
-    var no = replied.filter(function (g) { return g.answers[i].attending === false; });
-    var people = yes.reduce(function (n, g) { return n + g.answers[i].count; }, 0);
-    out.push([ev.name, people, yes.length, no.length, list.length - yes.length - no.length]);
-  });
+  st.events.forEach(function (e) { out.push([e.name, e.guests, e.invitedFamilies, e.yes, e.no, e.pending]); });
   sh.clear();
-  sh.getRange(1, 1, out.length, 5).setValues(out);
+  sh.getRange(1, 1, out.length, 6).setValues(out);
   sh.getRange(1, 1).setFontWeight('bold').setFontColor(s.testMode ? '#b45309' : '#2e7d32');
   sh.getRange(2, 2).setNumberFormat('yyyy-mm-dd hh:mm').setHorizontalAlignment('left');
-  sh.getRange(10, 1, 1, 5).setFontWeight('bold').setBackground('#d9ead3');
-  sh.getRange(11, 2, EVENT_COUNT, 1).setFontWeight('bold');
+  sh.getRange(10, 1, 1, 6).setFontWeight('bold').setBackground('#d9ead3');
+  if (st.events.length) sh.getRange(11, 2, st.events.length, 1).setFontWeight('bold');
   sh.setColumnWidth(1, 260);
-  for (var c = 2; c <= 5; c++) sh.setColumnWidth(c, 140);
+  for (var c = 2; c <= 6; c++) sh.setColumnWidth(c, 130);
+}
+
+/* ------------------------------------------------------ dashboard (API) */
+/* Every function below is called from Dashboard.html and is owner-only.  */
+
+var EDITABLE_SETTINGS = SETTINGS_SPEC.map(function (r) { return r[0]; }).filter(function (k) { return k !== 'Invitation Image'; });
+
+function fmtDate_(v) {
+  if (!(v instanceof Date)) return str_(v);
+  return Utilities.formatDate(v, ss_().getSpreadsheetTimeZone(), 'MMM d, h:mm a');
+}
+
+function guestView_(g) {
+  return {
+    token: g.token, family: g.family, greeting: g.greetingRaw, emails: g.emails.join(', '), max: g.max,
+    invitedTo: g.invitedTo, test: g.test, status: g.status || STATUS.NEW, message: g.message,
+    responded: fmtDate_(g.responded), inviteSent: fmtDate_(g.inviteSent), reminders: g.reminders,
+    answers: g.answers
+  };
+}
+
+/** Everything the dashboard shows, in one call. */
+function getDashboard() {
+  requireOwner_();
+  var s = getSettings_();
+  var data = readGuests_();
+  // Give every family a token so the dashboard can address rows reliably.
+  data.list.forEach(function (g) { ensureToken_(data, g); });
+  var settings = {};
+  EDITABLE_SETTINGS.forEach(function (k) { settings[k] = s[k]; });
+  return {
+    settings: settings,
+    help: SETTINGS_SPEC.reduce(function (m, r) { m[r[0]] = r[2]; return m; }, {}),
+    testMode: s.testMode,
+    image: imageDataUrl_(s),
+    events: data.events.map(function (e) { return { id: e.id, name: e.name, when: e.when, where: e.where, details: e.details }; }),
+    guests: data.list.map(guestView_),
+    stats: stats_(data, s),
+    quota: MailApp.getRemainingDailyQuota(),
+    sheetUrl: ss_().getUrl(),
+    owner: Session.getEffectiveUser().getEmail()
+  };
+}
+
+function saveSettings(values) {
+  requireOwner_();
+  var sh = sheet_(SHEET.SETTINGS);
+  var keys = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues().map(function (r) { return str_(r[0]); });
+  Object.keys(values || {}).forEach(function (k) {
+    if (EDITABLE_SETTINGS.indexOf(k) === -1) return;
+    var v = values[k] === true ? 'TRUE' : values[k] === false ? 'FALSE' : String(values[k] == null ? '' : values[k]);
+    var i = keys.indexOf(k);
+    if (i === -1) { sh.appendRow([k, v, '']); keys.push(k); } else sh.getRange(i + 2, 2).setValue(v);
+  });
+  SpreadsheetApp.flush();
+  refreshSummary();
+  return getDashboard();
+}
+
+/** Creates or updates an event. inviteAll: for a new event, also invite every family to it. */
+function saveEvent(ev, inviteAll) {
+  requireOwner_();
+  var sh = sheet_(SHEET.EVENTS);
+  var events = readEvents_();
+  var name = str_(ev && ev.name);
+  if (!name) throw new Error('Give the event a name.');
+  var row = [str_(ev.id), name, str_(ev.when), str_(ev.where), str_(ev.details)];
+  var existing = ev.id ? events.filter(function (e) { return e.id === ev.id; })[0] : null;
+  if (existing) {
+    sh.getRange(existing.row, 1, 1, EVENT_HEADERS.length).setValues([row]);
+  } else {
+    var n = 1;
+    while (events.some(function (e) { return e.id === 'E' + n; })) n++;
+    row[0] = 'E' + n;
+    // Families whose "Invited To" is blank are invited to every event, including
+    // new ones. If this event is only for some families, pin everyone else's list first.
+    if (!inviteAll) pinInvites_(events);
+    else appendInvite_(row[0]);
+    sh.appendRow(row);
+  }
+  SpreadsheetApp.flush();
+  refreshSummary();
+  return getDashboard();
+}
+
+function pinInvites_(events) {
+  var data = readGuests_(events);
+  data.list.forEach(function (g) {
+    if (g.allEvents) setCell_(data.sheet, data.hdr, g.row, COL.INVITED_TO, g.invitedTo.join(', '));
+  });
+}
+
+function appendInvite_(id) {
+  var data = readGuests_();
+  data.list.forEach(function (g) {
+    if (!g.allEvents) setCell_(data.sheet, data.hdr, g.row, COL.INVITED_TO, g.invitedTo.concat([id]).join(', '));
+  });
+}
+
+function deleteEvent(id) {
+  requireOwner_();
+  var events = readEvents_();
+  var ev = events.filter(function (e) { return e.id === id; })[0];
+  if (!ev) throw new Error('That event no longer exists.');
+  var data = readGuests_(events);
+  data.list.forEach(function (g) {
+    if (!g.allEvents && g.invitedTo.indexOf(id) !== -1) {
+      setCell_(data.sheet, data.hdr, g.row, COL.INVITED_TO, g.invitedTo.filter(function (x) { return x !== id; }).join(', '));
+    }
+  });
+  var rs = sheet_(SHEET.RESPONSES);
+  for (var r = rs.getLastRow(); r >= 2; r--) if (str_(rs.getRange(r, 3).getValue()) === id) rs.deleteRow(r);
+  sheet_(SHEET.EVENTS).deleteRow(ev.row);
+  SpreadsheetApp.flush();
+  refreshSummary();
+  return getDashboard();
+}
+
+/** Moves an event up (-1) or down (+1); the order is how guests see them. */
+function moveEvent(id, dir) {
+  requireOwner_();
+  var sh = sheet_(SHEET.EVENTS);
+  var events = readEvents_();
+  var i = events.map(function (e) { return e.id; }).indexOf(id), j = i + dir;
+  if (i === -1 || j < 0 || j >= events.length) return getDashboard();
+  var a = sh.getRange(events[i].row, 1, 1, EVENT_HEADERS.length), b = sh.getRange(events[j].row, 1, 1, EVENT_HEADERS.length);
+  var av = a.getValues(), bv = b.getValues();
+  a.setValues(bv); b.setValues(av);
+  SpreadsheetApp.flush();
+  refreshSummary();
+  return getDashboard();
+}
+
+/** Creates (no token) or updates (token) a family. */
+function saveGuest(g) {
+  requireOwner_();
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var data = readGuests_();
+    var family = str_(g && g.family);
+    if (!family) throw new Error('Enter a family name.');
+    var emails = str_(g.emails).split(/[,;\s]+/).filter(String);
+    var bad = emails.filter(function (e) { return !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e); });
+    if (bad.length) throw new Error('This doesn\'t look like an email address: ' + bad.join(', '));
+    var ids = data.events.map(function (e) { return e.id; });
+    var inv = (g.invitedTo || []).filter(function (id) { return ids.indexOf(id) !== -1; });
+    if (!inv.length) throw new Error('Tick at least one event for ' + family + '.');
+    var max = Math.max(1, parseInt(g.max, 10) || 1);
+    var values = {};
+    values[COL.FAMILY] = family;
+    values[COL.GREETING] = str_(g.greeting);
+    values[COL.EMAIL] = emails.join(', ');
+    values[COL.MAX] = max;
+    values[COL.INVITED_TO] = inv.length === ids.length ? '' : inv.join(', ');
+    values[COL.TEST] = !!g.test;
+    var row;
+    var existing = g.token ? data.list.filter(function (x) { return x.token === g.token; })[0] : null;
+    if (existing) {
+      row = existing.row;
+    } else {
+      row = Math.max(data.sheet.getLastRow(), 1) + 1;
+      values[COL.TOKEN] = newToken_();
+      values[COL.STATUS] = STATUS.NEW;
+    }
+    Object.keys(values).forEach(function (c) { setCell_(data.sheet, data.hdr, row, c, values[c]); });
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  refreshSummary();
+  return getDashboard();
+}
+
+function deleteGuests(tokens) {
+  requireOwner_();
+  var data = readGuests_();
+  var rs = sheet_(SHEET.RESPONSES);
+  data.list.filter(function (g) { return g.token && tokens.indexOf(g.token) !== -1; })
+    .sort(function (a, b) { return b.row - a.row; })
+    .forEach(function (g) { clearResponses_(rs, g.token); data.sheet.deleteRow(g.row); });
+  SpreadsheetApp.flush();
+  refreshSummary();
+  return getDashboard();
+}
+
+/**
+ * Adds many families at once from pasted lines, one per family:
+ *   Family name, email(s), max guests
+ * Several addresses can be separated by spaces or semicolons. New families are
+ * invited to every event.
+ */
+function importGuests(text, test) {
+  requireOwner_();
+  var data = readGuests_();
+  var have = data.list.map(function (g) { return g.family.toLowerCase(); });
+  var added = 0, skipped = [];
+  String(text || '').split(/\r?\n/).forEach(function (line) {
+    var parts = line.split(/[\t,;]/).map(str_); // pasted from a spreadsheet (tabs) or typed with commas
+    var family = parts[0];
+    if (!family) return;
+    var rest = parts.slice(1).join(' ');
+    var emails = rest.match(/[^@\s]+@[^@\s]+\.[^@\s]+/g) || [];
+    var maxPart = (rest.replace(/[^@\s]+@[^@\s]+/g, ' ').match(/\b\d+\b/) || [])[0];
+    if (have.indexOf(family.toLowerCase()) !== -1) { skipped.push(family + ' (already on the list)'); return; }
+    var row = Math.max(data.sheet.getLastRow(), 1) + 1;
+    var v = {};
+    v[COL.FAMILY] = family; v[COL.EMAIL] = emails.join(', '); v[COL.MAX] = parseInt(maxPart, 10) || 2;
+    v[COL.TEST] = !!test; v[COL.TOKEN] = newToken_(); v[COL.STATUS] = STATUS.NEW; v[COL.INVITED_TO] = '';
+    Object.keys(v).forEach(function (c) { setCell_(data.sheet, data.hdr, row, c, v[c]); });
+    have.push(family.toLowerCase());
+    added++;
+  });
+  SpreadsheetApp.flush();
+  refreshSummary();
+  var d = getDashboard();
+  d.notice = 'Added ' + added + ' famil' + (added === 1 ? 'y' : 'ies') + '.' + (skipped.length ? ' Skipped: ' + skipped.join('; ') + '.' : '');
+  return d;
+}
+
+/** Saves the invitation picture (sent from the browser as a data: URL, already resized) to Drive. */
+function uploadImage(dataUrl, fileName) {
+  requireOwner_();
+  var m = /^data:(image\/(?:png|jpeg|gif|webp));base64,(.+)$/.exec(String(dataUrl || ''));
+  if (!m) throw new Error('Please choose a PNG, JPG, GIF or WebP picture.');
+  var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], fileName || 'invitation');
+  var s = getSettings_();
+  var oldId = s['Invitation Image'];
+  var file = DriveApp.createFile(blob).setName('Bar Mitzvah invitation picture · ' + (fileName || 'image'));
+  setSettingRaw_('Invitation Image', file.getId());
+  if (oldId) { try { DriveApp.getFileById(oldId).setTrashed(true); } catch (e) { /* already gone */ } }
+  imageCache_ = undefined;
+  return getDashboard();
+}
+
+function removeImage() {
+  requireOwner_();
+  var id = getSettings_()['Invitation Image'];
+  if (id) { try { DriveApp.getFileById(id).setTrashed(true); } catch (e) { /* already gone */ } }
+  setSettingRaw_('Invitation Image', '');
+  imageCache_ = undefined;
+  return getDashboard();
+}
+
+function setSettingRaw_(key, value) {
+  var sh = sheet_(SHEET.SETTINGS);
+  var keys = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues().map(function (r) { return str_(r[0]); });
+  var i = keys.indexOf(key);
+  if (i === -1) sh.appendRow([key, value, '']); else sh.getRange(i + 2, 2).setValue(value);
+  SpreadsheetApp.flush();
+}
+
+/** HTML of an email as a family would receive it (for the on-screen preview). */
+function previewEmail(kind, token) {
+  requireOwner_();
+  var s = getSettings_(), data = readGuests_();
+  var g = (token && data.list.filter(function (x) { return x.token === token; })[0]) || data.list[0] || sampleGuest_(data.events);
+  var url = s['RSVP Page URL'] ? rsvpUrl_(s, g.token || 'sample', true) : 'https://example.com/your-rsvp-link';
+  var mail = buildEmail_(kind, g, s, data.events, url, imageDataUrl_(s));
+  return { subject: mail.subject, html: mail.html, family: g.family };
+}
+
+function sampleGuest_(events) {
+  return { family: 'The Sample Family', greeting: 'Dear Sample Family', invitedTo: events.map(function (e) { return e.id; }), answers: {}, max: 4, emails: [], token: '' };
+}
+
+/** Sends a sample invitation and reminder to the Test Inboxes. */
+function sendPreviewEmails(token) {
+  requireOwner_();
+  var s = getSettings_(), data = readGuests_();
+  var to = String(s['Test Inboxes'] || Session.getEffectiveUser().getEmail()).split(/[,;\s]+/).filter(String);
+  var g = (token && data.list.filter(function (x) { return x.token === token; })[0]) || data.list[0];
+  if (!g) throw new Error('Add at least one family first (it is used as the sample).');
+  var url = rsvpUrl_(s, ensureToken_(data, g), true);
+  var img = imageBlob_(s) ? 'cid:invite' : '';
+  var inv = buildEmail_('invite', g, s, data.events, url, img), rem = buildEmail_('reminder', g, s, data.events, url, img);
+  inv.subject = '[Preview] ' + inv.subject; rem.subject = '[Preview] ' + rem.subject;
+  if (MailApp.getRemainingDailyQuota() < to.length * 2) throw new Error('Not enough of today\'s email quota left for the previews.');
+  to.forEach(function (addr) { send_(addr, inv, s); send_(addr, rem, s); log_('Preview', g, addr, 'Sent'); });
+  return 'Sent a sample invitation and reminder (as ' + g.family + ') to ' + to.join(', ') +
+    '. Check each inbox, and its Spam/Junk and Promotions folders.';
+}
+
+/** mode: 'new' (everyone in scope not yet invited), 'reminders', or a list of tokens. */
+function sendNow(mode) {
+  requireOwner_();
+  var s = getSettings_(), data = readGuests_();
+  rsvpUrl_(s, 'x', false); // fail early if the page URL isn't set
+  var list;
+  if (mode === 'new') list = data.list.filter(function (g) { return inScope_(g, s) && !g.inviteSent; });
+  else if (mode === 'reminders') list = data.list.filter(function (g) { return inScope_(g, s) && g.inviteSent && !g.responded; });
+  else list = data.list.filter(function (g) { return (mode || []).indexOf(g.token) !== -1; });
+  if (!list.length) throw new Error('Nobody to send to.' + (s.testMode && typeof mode === 'string' ? ' Test Mode is on, so only families marked Test are included.' : ''));
+  var msg = sendBatch_(mode === 'reminders' ? 'reminder' : 'invite', list, data, s);
+  var d = getDashboard();
+  d.notice = msg;
+  return d;
+}
+
+/** How many families each send button would reach right now, for the confirm prompt. */
+function countRecipients(mode) {
+  requireOwner_();
+  var s = getSettings_(), data = readGuests_();
+  var list = mode === 'new' ? data.list.filter(function (g) { return inScope_(g, s) && !g.inviteSent; })
+    : data.list.filter(function (g) { return inScope_(g, s) && g.inviteSent && !g.responded; });
+  return { families: list.length, addresses: list.reduce(function (n, g) { return n + g.emails.length; }, 0), quota: MailApp.getRemainingDailyQuota(), testMode: s.testMode };
+}
+
+function getLink(token) {
+  requireOwner_();
+  var s = getSettings_();
+  return rsvpUrl_(s, token, false);
+}
+
+/** Clears replies, sent dates and reminder counts of every family marked Test. */
+function resetTestRows() {
+  requireOwner_();
+  var data = readGuests_();
+  var rs = sheet_(SHEET.RESPONSES);
+  var list = data.list.filter(function (g) { return g.test; });
+  list.forEach(function (g) {
+    [COL.INVITE_SENT, COL.REMINDERS, COL.LAST_REMINDER, COL.RESPONDED, COL.MESSAGE].forEach(function (c) { setCell_(data.sheet, data.hdr, g.row, c, ''); });
+    setCell_(data.sheet, data.hdr, g.row, COL.STATUS, STATUS.NEW);
+    if (g.token) clearResponses_(rs, g.token);
+  });
+  SpreadsheetApp.flush();
+  refreshSummary();
+  var d = getDashboard();
+  d.notice = 'Cleared ' + list.length + ' test famil' + (list.length === 1 ? 'y' : 'ies') + '.';
+  return d;
 }
