@@ -45,6 +45,7 @@ All the data lives in your Google Sheet, in tabs you can read and edit: **Settin
 
 ## 2. Set it up in the dashboard
 
+- **Invitation tab, envelope:** the invitation email opens with an animated envelope marked "You're invited" that opens to a card with your picture and "{child}'s Bar Mitzvah". Tapping it opens the invitation website. Click **Save and build animation** once, and again after changing the picture, style or wording; the dashboard tells you when it's out of date.
 - **Invitation tab:** pick a font style (8 choices, including a Hebrew-friendly one) and a color theme, then upload your picture (your printed design, a photo or a logo) and write the text. These placeholders fill in automatically: `{greeting}` `{family}` `{child}` `{hosts}` `{deadline}`. Each family's sub-events and their RSVP button are added below your message. Click **Save and update preview**, then check the preview as different families.
 - **Sub-events tab:** edit the three defaults (Friday Night, Saturday Morning, Saturday Night), add more, reorder them or delete them. When you add a sub-event, you choose whether every family is invited to it straight away. Leave that unticked for something only some families come to.
 - **Guest list tab:** use **+ Add a family**, or **Add many at once** to paste a list. Each line is `family name, email(s), most guests`, and you can copy those three columns straight from another spreadsheet. Then tick which sub-events each family is invited to; changes save immediately.

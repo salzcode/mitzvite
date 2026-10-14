@@ -47,9 +47,15 @@ var SETTINGS_SPEC = [
   ['Font Style', 'classic', 'Chosen in the Dashboard. One of: ' + 'classic, script, formal, modern, soft, hebrew, bold, handwritten.'],
   ['Color Theme', 'navy', 'Chosen in the Dashboard. One of: navy, black, royal, burgundy, forest, sky, blush, slate.'],
   ['Invitation Image', '', 'Managed by the Dashboard (a Google Drive file ID). Leave blank for no picture.'],
+  ['Envelope Text', "You're invited", 'Written on the envelope in the email animation.'],
+  ['Card Caption', "{child}'s Bar Mitzvah", 'Written on the card that comes out of the envelope.'],
+  ['Card Content', 'both', 'What the card shows: "both" (picture and caption), "picture" or "caption".'],
+  ['Email Animation', '', 'Managed by the Dashboard (a Google Drive file ID of the envelope GIF).'],
+  ['Animation Key', '', 'Managed by the Dashboard: what the animation was last built from.'],
+  ['Website Message', 'Together with our family\n{hosts}\ninvite you to celebrate the Bar Mitzvah of', 'Shown above the name on the invitation website.'],
   ['RSVP Deadline', 'February 1, 2027', 'Shown in emails and on the RSVP page.'],
   ['Invitation Subject', "You're invited to {child}'s Bar Mitzvah", 'Placeholders: {greeting} {family} {child} {hosts} {deadline}'],
-  ['Invitation Message', "{greeting},\n\nWe are thrilled to invite you to celebrate {child}'s Bar Mitzvah with us.\n\nPlease let us know which events you'll join, and how many of you will be coming, by {deadline}.\n\nWith love,\n{hosts}", 'The events this family is invited to and the RSVP button are added below this automatically.'],
+  ['Invitation Message', "{greeting},\n\nWith great joy, we invite you to celebrate {child}'s Bar Mitzvah.\n\nOpen your invitation to see the details and let us know who's coming by {deadline}.\n\nWith love,\n{hosts}", 'Shown under the envelope animation, above the "Open your invitation" button.'],
   ['Reminder Subject', "Reminder: please RSVP for {child}'s Bar Mitzvah", ''],
   ['Reminder Message', "{greeting},\n\nA gentle reminder: we'd love to know whether you can join us for {child}'s Bar Mitzvah. Please reply by {deadline} using the button below — it only takes a minute.\n\nWith love,\n{hosts}", ''],
   ['Confirmation Subject', "Thank you for your RSVP — {child}'s Bar Mitzvah", 'Sent to the family after they reply.'],
@@ -403,6 +409,25 @@ function imageBlob_(s) {
   if (id) { try { imageCache_ = DriveApp.getFileById(id).getBlob(); } catch (e) { imageCache_ = null; } }
   return imageCache_;
 }
+var animCache_;
+function animationBlob_(s) {
+  if (animCache_ !== undefined) return animCache_;
+  animCache_ = null;
+  var id = s['Email Animation'];
+  if (id) { try { animCache_ = DriveApp.getFileById(id).getBlob(); } catch (e) { animCache_ = null; } }
+  return animCache_;
+}
+
+/** Image sources for an email: "cid:" references for real emails, data: URLs for on-screen previews. */
+function media_(s, forPreview) {
+  var pic = imageBlob_(s), anim = animationBlob_(s);
+  var url = function (b) { return 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()); };
+  return {
+    picture: pic ? (forPreview ? url(pic) : 'cid:invite') : '',
+    animation: anim ? (forPreview ? url(anim) : 'cid:envelope') : ''
+  };
+}
+
 function imageDataUrl_(s) {
   var b = imageBlob_(s);
   return b ? 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()) : '';
@@ -411,10 +436,12 @@ function imageDataUrl_(s) {
 /* ---------------------------------------------------------------- emails */
 
 /**
- * kind: 'invite' | 'reminder' | 'confirm'. imgSrc is "cid:invite" for real
- * emails (the picture travels inline) or a data: URL for on-screen previews.
+ * kind: 'invite' | 'reminder' | 'confirm'. media (see media_) holds the picture
+ * and envelope animation sources. Invitations and reminders are a short "envelope"
+ * email that links to the invitation website; the thank-you lists their answers.
  */
-function buildEmail_(kind, guest, s, events, url, imgSrc) {
+function buildEmail_(kind, guest, s, events, url, media) {
+  media = media || {};
   var subjectKey = { invite: 'Invitation Subject', reminder: 'Reminder Subject', confirm: 'Confirmation Subject' }[kind];
   var msgKey = { invite: 'Invitation Message', reminder: 'Reminder Message', confirm: 'Confirmation Message' }[kind];
   var subject = fill_(s[subjectKey], guest, s);
@@ -451,6 +478,11 @@ function buildEmail_(kind, guest, s, events, url, imgSrc) {
     '<td style="width:44px;border-top:1px solid ' + st.accent + '"></td><td style="padding:0 8px;color:' + st.accent + ';font-size:10px;line-height:1">◆</td>' +
     '<td style="width:44px;border-top:1px solid ' + st.accent + '"></td></tr></table>';
 
+  if (kind !== 'confirm') {
+    return { subject: subject, text: intro + '\n\nOpen your invitation: ' + url + '\n' + 'RSVP by ' + s['RSVP Deadline'] + '.\n',
+      html: envelopeEmail_(s, st, intro, url, media) };
+  }
+  var imgSrc = media.picture;
   var html =
     '<link href="' + esc_(st.fontsUrl) + '" rel="stylesheet">' +
     '<div style="background:' + st.bg + ';padding:28px 10px;font-family:' + B + '">' +
@@ -473,12 +505,42 @@ function buildEmail_(kind, guest, s, events, url, imgSrc) {
   return { subject: subject, text: text, html: html };
 }
 
+function envelopeEmail_(s, st, intro, url, media) {
+  var B = st.body, D = st.display;
+  var top;
+  if (media.animation) {
+    top = '<a href="' + esc_(url) + '" style="display:block;text-decoration:none"><img src="' + esc_(media.animation) + '" alt="' +
+      esc_(s['Envelope Text'] + ' — ' + fill_(s['Card Caption'], { greeting: '', family: '' }, s)) +
+      '" width="580" style="display:block;width:100%;max-width:580px;height:auto;border-radius:12px 12px 0 0"></a>';
+  } else if (media.picture) {
+    top = '<a href="' + esc_(url) + '"><img src="' + esc_(media.picture) + '" alt="" width="580" style="display:block;width:100%;max-width:580px;height:auto;border-radius:12px 12px 0 0"></a>';
+  } else {
+    top = '<div style="padding:40px 20px 6px;text-align:center;font-family:' + D + ';font-size:' + Math.round(38 * st.displaySize) + 'px;color:' + st.ink + '">' +
+      esc_(s['Envelope Text']) + '</div>';
+  }
+  return '<link href="' + esc_(st.fontsUrl) + '" rel="stylesheet">' +
+    '<div style="background:' + st.bg + ';padding:28px 10px;font-family:' + B + '">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid ' + mix_(st.accent, 0.65) + '">' +
+    '<tr><td style="padding:0">' + top + '</td></tr>' +
+    '<tr><td style="padding:28px 36px 8px;font-family:' + B + ';font-size:16px;line-height:1.7;color:#333;text-align:center">' +
+    esc_(intro).replace(/\n/g, '<br>') + '</td></tr>' +
+    '<tr><td style="padding:18px 24px 34px;text-align:center">' +
+    '<a href="' + esc_(url) + '" style="display:inline-block;background:' + st.ink + ';color:#ffffff;text-decoration:none;padding:15px 40px;border-radius:999px;font-family:' + B + ';font-size:16px;letter-spacing:1px">Open your invitation</a>' +
+    '<div style="margin-top:14px;font-family:' + B + ';color:#777;font-size:13px;font-style:italic">Kindly reply by ' + esc_(s['RSVP Deadline']) + '</div>' +
+    '</td></tr></table>' +
+    '<div style="max-width:580px;margin:14px auto 0;text-align:center;color:#999;font-size:11px;font-family:Arial,sans-serif">Button not working? Copy this link into your browser:<br>' +
+    '<span style="word-break:break-all">' + esc_(url) + '</span></div></div>';
+}
+
 function send_(to, mail, s) {
   var opts = { htmlBody: mail.html, name: s['Email Sender Name'] || s['Hosts'] };
   if (s['Reply-To Address']) opts.replyTo = s['Reply-To Address'];
   if (s['Send From Alias']) opts.from = s['Send From Alias'];
   var img = imageBlob_(s);
-  if (img && mail.html.indexOf('cid:invite') !== -1) opts.inlineImages = { invite: img };
+  var anim = animationBlob_(s), inline = {};
+  if (img && mail.html.indexOf('cid:invite') !== -1) inline.invite = img;
+  if (anim && mail.html.indexOf('cid:envelope') !== -1) inline.envelope = anim;
+  if (Object.keys(inline).length) opts.inlineImages = inline;
   GmailApp.sendEmail(to, mail.subject, mail.text, opts);
 }
 
@@ -489,14 +551,14 @@ function send_(to, mail, s) {
  */
 function sendBatch_(kind, guests, data, s) {
   var sent = 0, failed = [], skipped = 0;
-  var img = imageBlob_(s) ? 'cid:invite' : '';
+  var media = media_(s, false);
   for (var i = 0; i < guests.length; i++) {
     var g = guests[i];
     if (!g.emails.length) { failed.push(g.family + ' (no email)'); continue; }
     if (!eventsFor_(g, data.events).length) { failed.push(g.family + ' (not invited to any event)'); continue; }
     if (MailApp.getRemainingDailyQuota() < g.emails.length) { skipped = guests.length - i; break; }
     try {
-      send_(g.emails.join(','), buildEmail_(kind, g, s, data.events, rsvpUrl_(s, ensureToken_(data, g), false), img), s);
+      send_(g.emails.join(','), buildEmail_(kind, g, s, data.events, rsvpUrl_(s, ensureToken_(data, g), false), media), s);
       var now = new Date();
       if (kind === 'invite') {
         setCell_(data.sheet, data.hdr, g.row, COL.INVITE_SENT, now);
@@ -542,6 +604,8 @@ function doGet(e) {
     heading: s['Invitation Heading'], child: s['Child Name'], hosts: s['Hosts'], deadline: s['RSVP Deadline'],
     image: imageDataUrl_(s),
     style: style_(s),
+    envelopeText: s['Envelope Text'],
+    websiteMessage: g ? fill_(s['Website Message'], g, s) : '',
     events: mine.map(function (ev) { return { id: ev.id, name: ev.name, when: ev.when, where: ev.where, details: ev.details }; }),
     found: !!g,
     token: token,
@@ -594,7 +658,7 @@ function submitRsvp(token, answers, message) {
   var url = rsvpUrl_(s, g.token, false);
   if (isTrue_(s['Send Confirmation To Guests']) && g.emails.length && MailApp.getRemainingDailyQuota() >= g.emails.length) {
     try {
-      send_(g.emails.join(','), buildEmail_('confirm', g, s, data.events, url, imageBlob_(s) ? 'cid:invite' : ''), s);
+      send_(g.emails.join(','), buildEmail_('confirm', g, s, data.events, url, media_(s, false)), s);
       log_('Confirmation', g, g.emails.join(', '), 'Sent');
     } catch (err) { log_('Confirmation', g, g.emails.join(', '), 'FAILED: ' + err.message); }
   }
@@ -686,7 +750,8 @@ function refreshSummary() {
 /* ------------------------------------------------------ dashboard (API) */
 /* Every function below is called from Dashboard.html and is owner-only.  */
 
-var EDITABLE_SETTINGS = SETTINGS_SPEC.map(function (r) { return r[0]; }).filter(function (k) { return k !== 'Invitation Image'; });
+var MANAGED_SETTINGS = ['Invitation Image', 'Email Animation', 'Animation Key'];
+var EDITABLE_SETTINGS = SETTINGS_SPEC.map(function (r) { return r[0]; }).filter(function (k) { return MANAGED_SETTINGS.indexOf(k) === -1; });
 
 function fmtDate_(v) {
   if (!(v instanceof Date)) return str_(v);
@@ -716,6 +781,9 @@ function getDashboard() {
     help: SETTINGS_SPEC.reduce(function (m, r) { m[r[0]] = r[2]; return m; }, {}),
     testMode: s.testMode,
     image: imageDataUrl_(s),
+    imageId: s['Invitation Image'],
+    animation: (function () { var b = animationBlob_(s); return b ? 'data:image/gif;base64,' + Utilities.base64Encode(b.getBytes()) : ''; })(),
+    animationKey: s['Animation Key'],
     style: style_(s),
     fonts: Object.keys(FONT_PRESETS).map(function (k) { var f = FONT_PRESETS[k]; return { key: k, label: f.label, display: f.display, body: f.body, displaySize: f.displaySize || 1 }; }),
     themes: Object.keys(THEMES).map(function (k) { var t = THEMES[k]; return { key: k, label: t.label, ink: t.ink, accent: t.accent, bg: t.bg }; }),
@@ -905,6 +973,22 @@ function importGuests(text, test) {
   return d;
 }
 
+/** Saves the envelope GIF the dashboard drew, and what it was drawn from (so the dashboard can tell when it's out of date). */
+function uploadAnimation(dataUrl, key) {
+  requireOwner_();
+  var m = /^data:image\/gif;base64,(.+)$/.exec(String(dataUrl || ''));
+  if (!m) throw new Error('The animation didn\'t come through. Please try again.');
+  var s = getSettings_();
+  var oldId = s['Email Animation'];
+  var file = DriveApp.createFile(Utilities.newBlob(Utilities.base64Decode(m[1]), 'image/gif', 'invitation.gif'))
+    .setName('Bar Mitzvah email animation.gif');
+  setSettingRaw_('Email Animation', file.getId());
+  setSettingRaw_('Animation Key', String(key || ''));
+  if (oldId) { try { DriveApp.getFileById(oldId).setTrashed(true); } catch (e) { /* already gone */ } }
+  animCache_ = undefined;
+  return getDashboard();
+}
+
 /** Saves the invitation picture (sent from the browser as a data: URL, already resized) to Drive. */
 function uploadImage(dataUrl, fileName) {
   requireOwner_();
@@ -943,7 +1027,7 @@ function previewEmail(kind, token) {
   var s = getSettings_(), data = readGuests_();
   var g = (token && data.list.filter(function (x) { return x.token === token; })[0]) || data.list[0] || sampleGuest_(data.events);
   var url = s['RSVP Page URL'] ? rsvpUrl_(s, g.token || 'sample', true) : 'https://example.com/your-rsvp-link';
-  var mail = buildEmail_(kind, g, s, data.events, url, imageDataUrl_(s));
+  var mail = buildEmail_(kind, g, s, data.events, url, media_(s, true));
   return { subject: mail.subject, html: mail.html, family: g.family };
 }
 
@@ -959,8 +1043,8 @@ function sendPreviewEmails(token) {
   var g = (token && data.list.filter(function (x) { return x.token === token; })[0]) || data.list[0];
   if (!g) throw new Error('Add at least one family first (it is used as the sample).');
   var url = rsvpUrl_(s, ensureToken_(data, g), true);
-  var img = imageBlob_(s) ? 'cid:invite' : '';
-  var inv = buildEmail_('invite', g, s, data.events, url, img), rem = buildEmail_('reminder', g, s, data.events, url, img);
+  var media = media_(s, false);
+  var inv = buildEmail_('invite', g, s, data.events, url, media), rem = buildEmail_('reminder', g, s, data.events, url, media);
   inv.subject = '[Preview] ' + inv.subject; rem.subject = '[Preview] ' + rem.subject;
   if (MailApp.getRemainingDailyQuota() < to.length * 2) throw new Error('Not enough of today\'s email quota left for the previews.');
   to.forEach(function (addr) { send_(addr, inv, s); send_(addr, rem, s); log_('Preview', g, addr, 'Sent'); });
