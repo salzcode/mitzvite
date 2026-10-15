@@ -683,6 +683,9 @@
       '<div class="checks" style="margin-top:12px"><label><input type="checkbox" data-key="Send Confirmation To Guests"' +
       (/^true$/i.test(D.settings['Send Confirmation To Guests']) ? ' checked' : '') + '> Send each family a thank-you email after they reply</label></div>' +
       '<div class="hint">Each thank-you uses one email from your daily limit.</div>' +
+      '<div class="checks" style="margin-top:12px"><label><input type="checkbox" data-key="Picture In Email"' +
+      (!/^false$/i.test(D.settings['Picture In Email'] || 'TRUE') ? ' checked' : '') + '> Show the picture in the invitation and reminder emails</label></div>' +
+      '<div class="hint">Emails with only text and one link are less likely to land in spam. The picture always shows on the invitation page.</div>' +
       '<h3>Testing</h3>' +
       field('Test Inboxes', 'Test inboxes for previews', 'text', 'Addresses you control at Gmail, Outlook, Yahoo, iCloud… plus one from mail-tester.com for a spam score. Separate with commas.') +
       '<h3>Web addresses</h3>' +

@@ -56,6 +56,7 @@ var SETTINGS_SPEC = [
   ['Reminder Message', "{greeting},\n\nA gentle reminder: we'd love to know whether you can join us for {child}'s Bar Mitzvah. Please reply by {deadline} using the button below — it only takes a minute.\n\nWith love,\n{hosts}", ''],
   ['Confirmation Subject', "Thank you for your RSVP — {child}'s Bar Mitzvah", 'Sent to the family after they reply.'],
   ['Confirmation Message', '{greeting},\n\nThank you for letting us know! Here is what we have for you:', ''],
+  ['Picture In Email', 'TRUE', 'TRUE/FALSE. Show the invitation picture in the invitation and reminder emails. Turning it off can help emails avoid spam folders; the picture is still on the invitation page.'],
   ['Send Confirmation To Guests', 'TRUE', 'TRUE/FALSE. Each confirmation uses one email from your daily quota.'],
   ['Notify Me Of Replies', '', 'Your email address to get a note each time a family replies (leave blank for none).'],
   ['Email Sender Name', 'Sarah & David Cohen', 'The name guests see in their inbox.'],
@@ -501,7 +502,7 @@ function simpleEmail_(s, st, intro, url, media) {
   var parts = letterParts_(intro);
   var p = function (t) { return '<p style="margin:0 0 16px">' + esc_(t).replace(/\n/g, '<br>') + '</p>'; };
   return '<div style="font-family:Georgia,\'Times New Roman\',serif;font-size:16px;line-height:1.6;color:#222;max-width:560px">' +
-    (media.picture ? '<p style="margin:0 0 18px"><a href="' + esc_(url) + '"><img src="' + esc_(media.picture) + '" alt="' + esc_(s['Child Name'] + '\'s Bar Mitzvah') +
+    (media.picture && isTrue_(s['Picture In Email']) ? '<p style="margin:0 0 18px"><a href="' + esc_(url) + '"><img src="' + esc_(media.picture) + '" alt="' + esc_(s['Child Name'] + '\'s Bar Mitzvah') +
       '" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:6px"></a></p>' : '') +
     parts.body.map(p).join('') +
     '<p style="margin:0 0 20px"><a href="' + esc_(url) + '" style="color:' + st.ink + ';font-weight:bold">Open your invitation and RSVP</a></p>' +
