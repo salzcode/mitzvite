@@ -8,8 +8,22 @@
     :root { --ink: #1f2a44; --accent: #b08d3c; --bg: #f7f2e8; --tint: #fbf8f1; --display: Georgia, serif; --title: Georgia, serif; --tweight: 400; --body: Georgia, serif; --dsize: 1; }
     body { margin: 0; background: var(--bg); color: #333; font: 17px/1.6 var(--body); }
     .wrap { max-width: 580px; margin: 0 auto; padding: 28px 16px 56px; }
-    .card { background: #fff; border: 1px solid color-mix(in srgb, var(--accent) 35%, #fff); border-radius: 14px; padding: 32px 22px; box-shadow: 0 10px 40px rgba(0,0,0,.06); }
-    .hero { display: block; width: calc(100% + 44px); margin: -32px -22px 24px; border-radius: 14px 14px 0 0; }
+    .layout { display: grid; gap: 18px; }
+    .card { --padx: 22px; --pady: 32px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: var(--pady) var(--padx);
+            box-shadow: 0 10px 40px rgba(0,0,0,.06); }
+    .hero { display: block; width: calc(100% + 2 * var(--padx)); margin: calc(-1 * var(--pady)) calc(-1 * var(--padx)) 24px; border-radius: 14px 14px 0 0; }
+    /* The invitation itself: a framed card, like the printed one. */
+    .invitation { position: relative; text-align: center; background: var(--tint); }
+    .invitation.framed:after { content: ''; position: absolute; inset: 10px; border: 1px solid var(--line); border-radius: 8px; pointer-events: none; }
+    .invitation .reply-by { font-size: 14px; font-style: italic; color: #777; margin-top: 18px; }
+    @media (min-width: 900px) {
+      .wrap { max-width: 1160px; padding: 48px 32px 72px; }
+      .layout { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+      .invitation { position: sticky; top: 24px; --padx: 44px; --pady: 48px; }
+      .invitation h1 { font-size: calc(56px * var(--dsize)); }
+      .invitation .invite-words { font-size: 18px; }
+      #app { --padx: 36px; --pady: 40px; }
+    }
     .kicker { text-align: center; letter-spacing: 4px; color: var(--accent); font-size: 12px; text-transform: uppercase; }
     h1 { text-align: center; font-family: var(--display); font-weight: normal; color: var(--ink); font-size: calc(42px * var(--dsize)); line-height: 1.15; margin: 8px 0 6px; }
     .rule { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--accent); font-size: 10px; margin: 6px 0 22px; }
@@ -17,7 +31,7 @@
     .lead { text-align: center; margin: 0 0 8px; }
     .muted { color: #777; font-size: 14px; text-align: center; }
     .banner { background: #fff4d6; border: 1px solid #e8c873; border-radius: 6px; padding: 10px 12px; font: 14px Arial, sans-serif; margin-bottom: 14px; }
-    .event { display: flex; gap: 14px; border: 2px solid color-mix(in srgb, var(--accent) 30%, #fff); background: var(--tint); border-radius: 10px; padding: 14px; margin-top: 14px; cursor: pointer;
+    .event { display: flex; gap: 14px; border: 2px solid var(--line); background: var(--tint); border-radius: 10px; padding: 14px; margin-top: 14px; cursor: pointer;
              transition: border-color .15s, background .15s; }
     .event.on { border-color: #2e7d32; background: #f3faf3; }
     .num { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; font: bold 15px Arial, sans-serif;
@@ -36,7 +50,7 @@
     .step:disabled { opacity: .35; cursor: default; }
     .count b { min-width: 24px; text-align: center; font-size: 20px; color: var(--ink); }
     textarea { font: 16px var(--body); border: 1px solid #ccc; border-radius: 6px; padding: 8px; width: 100%; min-height: 80px; margin-top: 6px; }
-    .note { padding-top: 18px; margin-top: 22px; border-top: 1px solid color-mix(in srgb, var(--accent) 30%, #fff); font: 15px var(--body); }
+    .note { padding-top: 18px; margin-top: 22px; border-top: 1px solid var(--line); font: 15px var(--body); }
     button.send { width: 100%; margin-top: 20px; padding: 14px; font: 17px var(--body); letter-spacing: 1px; color: #fff; background: var(--ink);
              border: 0; border-radius: 999px; cursor: pointer; }
     button.send:disabled { opacity: .6; cursor: default; }
@@ -82,7 +96,7 @@
 <body>
 <div id="intro" hidden><div class="env"><div class="env-back"></div><div class="env-flap"></div><div class="env-card" id="envCardEl"></div>
   <div class="env-front" id="envText"></div><div class="seal" id="seal"></div></div><div class="tap">Tap to open</div></div>
-<div class="wrap"><div class="card" id="app"></div></div>
+<div class="wrap"><div class="layout"><aside class="card invitation" id="invitation"></aside><main class="card" id="app"></main></div></div>
 
 <script>
   var M = <?!= modelJson ?>;
@@ -101,6 +115,7 @@
       }
       return out;
     }
+    r.setProperty('--line', mix('#ffffff', st.accent, 0.35));
     r.setProperty('--env-bg2', mix(st.ink, '#ffffff', 0.12));
     r.setProperty('--env-front', mix('#fffdf7', st.accent, 0.06));
     r.setProperty('--env-flap', mix('#fffdf7', st.accent, 0.16));
@@ -119,8 +134,14 @@
     return (M.image ? '<img class="hero" alt="" src="' + M.image + '">' : '') +
       (words ? '<p class="invite-words">' + esc(M.websiteMessage).replace(/\n/g, '<br>') + '</p>'
         : M.heading ? '<div class="kicker">' + esc(M.heading) + '</div>' : '') +
-      '<h1>' + esc(M.child) + '</h1><div class="rule">◆</div>';
+      '<h1>' + esc(M.child) + '</h1><div class="rule">◆</div>' +
+      (M.found && M.deadline ? '<div class="reply-by">Kindly reply by ' + esc(M.deadline) + '</div>' : '');
   }
+  (function () {
+    var inv = document.getElementById('invitation');
+    inv.innerHTML = header();
+    if (!M.image) inv.className += ' framed';
+  })();
 
   /** The envelope that opens when the page loads (tap, or it opens by itself after a moment). */
   function intro() {
@@ -144,11 +165,11 @@
 
   function renderForm() {
     if (!M.found) {
-      app.innerHTML = header() + '<p class="lead">We couldn\'t find your invitation.</p>' +
+      app.innerHTML = '<p class="lead">We couldn\'t find your invitation.</p>' +
         '<p class="muted">Please open the RSVP button from your invitation email again, or contact ' + esc(M.hosts) + '.</p>';
       return;
     }
-    var h = header();
+    var h = '';
     if (M.preview) h += '<div class="banner"><b>Preview</b> — this is what ' + esc(M.family) + ' will see. Answers here are not saved.</div>';
     h += '<p class="lead">' + esc(M.greeting) + ',</p>';
     h += '<div class="section">The celebrations</div>';
@@ -220,7 +241,7 @@
 
   function renderDone(preview) {
     var any = M.events.some(function (ev) { return M.answers[ev.id] && M.answers[ev.id].attending; });
-    var h = header() + '<div class="done">';
+    var h = '<div class="done">';
     if (preview) h += '<div class="banner">Preview — nothing was saved.</div>';
     h += '<div class="big">' + (any ? 'Thank you — we can\'t wait to celebrate with you!' : 'Thank you for letting us know. You\'ll be missed!') + '</div>';
     h += '<div class="summary">' + M.events.map(function (ev, i) {

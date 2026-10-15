@@ -161,11 +161,6 @@
 </dialog>
 
 <script>
-/* gifenc 1.0.3 by Matt DesLauriers, MIT License (https://github.com/mattdesl/gifenc). Encodes the envelope GIF in the browser. */
-(function(){var X={signature:"GIF",version:"89a",trailer:59,extensionIntroducer:33,applicationExtensionLabel:255,graphicControlExtensionLabel:249,imageSeparator:44,signatureSize:3,versionSize:3,globalColorTableFlagMask:128,colorResolutionMask:112,sortFlagMask:8,globalColorTableSizeMask:7,applicationIdentifierSize:8,applicationAuthCodeSize:3,disposalMethodMask:28,userInputFlagMask:2,transparentColorFlagMask:1,localColorTableFlagMask:128,interlaceFlagMask:64,idSortFlagMask:32,localColorTableSizeMask:7};function F(t=256){let e=0,s=new Uint8Array(t);return{get buffer(){return s.buffer},reset(){e=0},bytesView(){return s.subarray(0,e)},bytes(){return s.slice(0,e)},writeByte(r){n(e+1),s[e]=r,e++},writeBytes(r,o=0,i=r.length){n(e+i);for(let c=0;c<i;c++)s[e++]=r[c+o]},writeBytesView(r,o=0,i=r.byteLength){n(e+i),s.set(r.subarray(o,o+i),e),e+=i}};function n(r){var o=s.length;if(o>=r)return;var i=1024*1024;r=Math.max(r,o*(o<i?2:1.125)>>>0),o!=0&&(r=Math.max(r,256));let c=s;s=new Uint8Array(r),e>0&&s.set(c.subarray(0,e),0)}}var O=12,J=5003,lt=[0,1,3,7,15,31,63,127,255,511,1023,2047,4095,8191,16383,32767,65535];function at(t,e,s,n,r=F(512),o=new Uint8Array(256),i=new Int32Array(J),c=new Int32Array(J)){let x=i.length,a=Math.max(2,n);o.fill(0),c.fill(0),i.fill(-1);let l=0,f=0,g=a+1,h=g,b=!1,w=h,_=(1<<w)-1,u=1<<g-1,k=u+1,B=u+2,p=0,A=s[0],z=0;for(let y=x;y<65536;y*=2)++z;z=8-z,r.writeByte(a),I(u);let d=s.length;for(let y=1;y<d;y++){t:{let m=s[y],v=(m<<O)+A,M=m<<z^A;if(i[M]===v){A=c[M];break t}let V=M===0?1:x-M;for(;i[M]>=0;)if(M-=V,M<0&&(M+=x),i[M]===v){A=c[M];break t}I(A),A=m,B<1<<O?(c[M]=B++,i[M]=v):(i.fill(-1),B=u+2,b=!0,I(u))}}return I(A),I(k),r.writeByte(0),r.bytesView();function I(y){for(l&=lt[f],f>0?l|=y<<f:l=y,f+=w;f>=8;)o[p++]=l&255,p>=254&&(r.writeByte(p),r.writeBytesView(o,0,p),p=0),l>>=8,f-=8;if((B>_||b)&&(b?(w=h,_=(1<<w)-1,b=!1):(++w,_=w===O?1<<w:(1<<w)-1)),y==k){for(;f>0;)o[p++]=l&255,p>=254&&(r.writeByte(p),r.writeBytesView(o,0,p),p=0),l>>=8,f-=8;p>0&&(r.writeByte(p),r.writeBytesView(o,0,p),p=0)}}}var $=at;function D(t,e,s){return t<<8&63488|e<<2&992|s>>3}function G(t,e,s,n){return t>>4|e&240|(s&240)<<4|(n&240)<<8}function j(t,e,s){return t>>4<<8|e&240|s>>4}function R(t,e,s){return t<e?e:t>s?s:t}function T(t){return t*t}function tt(t,e,s){var n=0,r=1e100;let o=t[e],i=o.cnt,c=o.ac,x=o.rc,a=o.gc,l=o.bc;for(var f=o.fw;f!=0;f=t[f].fw){let h=t[f],b=h.cnt,w=i*b/(i+b);if(!(w>=r)){var g=0;s&&(g+=w*T(h.ac-c),g>=r)||(g+=w*T(h.rc-x),!(g>=r)&&(g+=w*T(h.gc-a),!(g>=r)&&(g+=w*T(h.bc-l),!(g>=r)&&(r=g,n=f))))}}o.err=r,o.nn=n}function Q(){return{ac:0,rc:0,gc:0,bc:0,cnt:0,nn:0,fw:0,bk:0,tm:0,mtm:0,err:0}}function ut(t,e){let s=e==="rgb444"?4096:65536,n=new Array(s),r=t.length;if(e==="rgba4444")for(let o=0;o<r;++o){let i=t[o],c=i>>24&255,x=i>>16&255,a=i>>8&255,l=i&255,f=G(l,a,x,c),g=f in n?n[f]:n[f]=Q();g.rc+=l,g.gc+=a,g.bc+=x,g.ac+=c,g.cnt++}else if(e==="rgb444")for(let o=0;o<r;++o){let i=t[o],c=i>>16&255,x=i>>8&255,a=i&255,l=j(a,x,c),f=l in n?n[l]:n[l]=Q();f.rc+=a,f.gc+=x,f.bc+=c,f.cnt++}else for(let o=0;o<r;++o){let i=t[o],c=i>>16&255,x=i>>8&255,a=i&255,l=D(a,x,c),f=l in n?n[l]:n[l]=Q();f.rc+=a,f.gc+=x,f.bc+=c,f.cnt++}return n}function H(t,e,s={}){let{format:n="rgb565",clearAlpha:r=!0,clearAlphaColor:o=0,clearAlphaThreshold:i=0,oneBitAlpha:c=!1}=s;if(!t||!t.buffer)throw new Error("quantize() expected RGBA Uint8Array data");if(!(t instanceof Uint8Array)&&!(t instanceof Uint8ClampedArray))throw new Error("quantize() expected RGBA Uint8Array data");let x=new Uint32Array(t.buffer),a=s.useSqrt!==!1,l=n==="rgba4444",f=ut(x,n),g=f.length,h=g-1,b=new Uint32Array(g+1);for(var w=0,u=0;u<g;++u){let C=f[u];if(C!=null){var _=1/C.cnt;l&&(C.ac*=_),C.rc*=_,C.gc*=_,C.bc*=_,f[w++]=C}}T(e)/w<.022&&(a=!1);for(var u=0;u<w-1;++u)f[u].fw=u+1,f[u+1].bk=u,a&&(f[u].cnt=Math.sqrt(f[u].cnt));a&&(f[u].cnt=Math.sqrt(f[u].cnt));var k,B,p;for(u=0;u<w;++u){tt(f,u,!1);var A=f[u].err;for(B=++b[0];B>1&&(p=B>>1,!(f[k=b[p]].err<=A));B=p)b[B]=k;b[B]=u}var z=w-e;for(u=0;u<z;){for(var d;;){var I=b[1];if(d=f[I],d.tm>=d.mtm&&f[d.nn].mtm<=d.tm)break;d.mtm==h?I=b[1]=b[b[0]--]:(tt(f,I,!1),d.tm=u);var A=f[I].err;for(B=1;(p=B+B)<=b[0]&&(p<b[0]&&f[b[p]].err>f[b[p+1]].err&&p++,!(A<=f[k=b[p]].err));B=p)b[B]=k;b[B]=I}var y=f[d.nn],m=d.cnt,v=y.cnt,_=1/(m+v);l&&(d.ac=_*(m*d.ac+v*y.ac)),d.rc=_*(m*d.rc+v*y.rc),d.gc=_*(m*d.gc+v*y.gc),d.bc=_*(m*d.bc+v*y.bc),d.cnt+=y.cnt,d.mtm=++u,f[y.bk].fw=y.fw,f[y.fw].bk=y.bk,y.mtm=h}let M=[];var V=0;for(u=0;;++V){let L=R(Math.round(f[u].rc),0,255),C=R(Math.round(f[u].gc),0,255),Y=R(Math.round(f[u].bc),0,255),E=255;if(l){if(E=R(Math.round(f[u].ac),0,255),c){let st=typeof c=="number"?c:127;E=E<=st?0:255}r&&E<=i&&(L=C=Y=o,E=0)}let K=l?[L,C,Y,E]:[L,C,Y];if(xt(M,K)||M.push(K),(u=f[u].fw)==0)break}return M}function xt(t,e){for(let s=0;s<t.length;s++){let n=t[s],r=n[0]===e[0]&&n[1]===e[1]&&n[2]===e[2],o=n.length>=4&&e.length>=4?n[3]===e[3]:!0;if(r&&o)return!0}return!1}function U(t,e){var s=0,n;for(n=0;n<t.length;n++){let r=t[n]-e[n];s+=r*r}return s}function P(t,e){return e>1?Math.round(t/e)*e:t}function et(t,{roundRGB:e=5,roundAlpha:s=10,oneBitAlpha:n=null}={}){let r=new Uint32Array(t.buffer);for(let o=0;o<r.length;o++){let i=r[o],c=i>>24&255,x=i>>16&255,a=i>>8&255,l=i&255;if(c=P(c,s),n){let f=typeof n=="number"?n:127;c=c<=f?0:255}l=P(l,e),a=P(a,e),x=P(x,e),r[o]=c<<24|x<<16|a<<8|l<<0}}function nt(t,e,s="rgb565"){if(!t||!t.buffer)throw new Error("quantize() expected RGBA Uint8Array data");if(!(t instanceof Uint8Array)&&!(t instanceof Uint8ClampedArray))throw new Error("quantize() expected RGBA Uint8Array data");if(e.length>256)throw new Error("applyPalette() only works with 256 colors or less");let n=new Uint32Array(t.buffer),r=n.length,o=s==="rgb444"?4096:65536,i=new Uint8Array(r),c=new Array(o),x=s==="rgba4444";if(s==="rgba4444")for(let a=0;a<r;a++){let l=n[a],f=l>>24&255,g=l>>16&255,h=l>>8&255,b=l&255,w=G(b,h,g,f),_=w in c?c[w]:c[w]=gt(b,h,g,f,e);i[a]=_}else{let a=s==="rgb444"?j:D;for(let l=0;l<r;l++){let f=n[l],g=f>>16&255,h=f>>8&255,b=f&255,w=a(b,h,g),_=w in c?c[w]:c[w]=bt(b,h,g,e);i[l]=_}}return i}function gt(t,e,s,n,r){let o=0,i=1e100;for(let c=0;c<r.length;c++){let x=r[c],a=x[3],l=q(a-n);if(l>i)continue;let f=x[0];if(l+=q(f-t),l>i)continue;let g=x[1];if(l+=q(g-e),l>i)continue;let h=x[2];l+=q(h-s),!(l>i)&&(i=l,o=c)}return o}function bt(t,e,s,n){let r=0,o=1e100;for(let i=0;i<n.length;i++){let c=n[i],x=c[0],a=q(x-t);if(a>o)continue;let l=c[1];if(a+=q(l-e),a>o)continue;let f=c[2];a+=q(f-s),!(a>o)&&(o=a,r=i)}return r}function rt(t,e,s=5){if(!t.length||!e.length)return;let n=t.map(i=>i.slice(0,3)),r=s*s,o=t[0].length;for(let i=0;i<e.length;i++){let c=e[i];c.length<o?c=[c[0],c[1],c[2],255]:c.length>o?c=c.slice(0,3):c=c.slice();let x=N(n,c.slice(0,3),U),a=x[0],l=x[1];l>0&&l<=r&&(t[a]=c)}}function q(t){return t*t}function W(t,e,s=U){let n=Infinity,r=-1;for(let o=0;o<t.length;o++){let i=t[o],c=s(e,i);c<n&&(n=c,r=o)}return r}function N(t,e,s=U){let n=Infinity,r=-1;for(let o=0;o<t.length;o++){let i=t[o],c=s(e,i);c<n&&(n=c,r=o)}return[r,n]}function ot(t,e,s=U){return t[W(t,e,s)]}function ct(t={}){let{initialCapacity:e=4096,auto:s=!0}=t,n=F(e),r=5003,o=new Uint8Array(256),i=new Int32Array(r),c=new Int32Array(r),x=!1;return{reset(){n.reset(),x=!1},finish(){n.writeByte(X.trailer)},bytes(){return n.bytes()},bytesView(){return n.bytesView()},get buffer(){return n.buffer},get stream(){return n},writeHeader:a,writeFrame(l,f,g,h={}){let{transparent:b=!1,transparentIndex:w=0,delay:_=0,palette:u=null,repeat:k=0,colorDepth:B=8,dispose:p=-1}=h,A=!1;if(s?x||(A=!0,a(),x=!0):A=Boolean(h.first),f=Math.max(0,Math.floor(f)),g=Math.max(0,Math.floor(g)),A){if(!u)throw new Error("First frame must include a { palette } option");pt(n,f,g,u,B),it(n,u),k>=0&&dt(n,k)}let z=Math.round(_/10);wt(n,p,z,b,w);let d=Boolean(u)&&!A;ht(n,f,g,d?u:null),d&&it(n,u),yt(n,l,f,g,B,o,i,c)}};function a(){ft(n,"GIF89a")}}function wt(t,e,s,n,r){t.writeByte(33),t.writeByte(249),t.writeByte(4),r<0&&(r=0,n=!1);var o,i;n?(o=1,i=2):(o=0,i=0),e>=0&&(i=e&7),i<<=2;let c=0;t.writeByte(0|i|c|o),S(t,s),t.writeByte(r||0),t.writeByte(0)}function pt(t,e,s,n,r=8){let o=1,i=0,c=Z(n.length)-1,x=o<<7|r-1<<4|i<<3|c,a=0,l=0;S(t,e),S(t,s),t.writeBytes([x,a,l])}function dt(t,e){t.writeByte(33),t.writeByte(255),t.writeByte(11),ft(t,"NETSCAPE2.0"),t.writeByte(3),t.writeByte(1),S(t,e),t.writeByte(0)}function it(t,e){let s=1<<Z(e.length);for(let n=0;n<s;n++){let r=[0,0,0];n<e.length&&(r=e[n]),t.writeByte(r[0]),t.writeByte(r[1]),t.writeByte(r[2])}}function ht(t,e,s,n){if(t.writeByte(44),S(t,0),S(t,0),S(t,e),S(t,s),n){let r=0,o=0,i=Z(n.length)-1;t.writeByte(128|r|o|0|i)}else t.writeByte(0)}function yt(t,e,s,n,r=8,o,i,c){$(s,n,e,r,t,o,i,c)}function S(t,e){t.writeByte(e&255),t.writeByte(e>>8&255)}function ft(t,e){for(var s=0;s<e.length;s++)t.writeByte(e.charCodeAt(s))}function Z(t){return Math.max(Math.ceil(Math.log2(t)),1)}var Bt=ct;
-window.gifenc={GIFEncoder:ct,quantize:H,applyPalette:nt};})();
-</script>
-<script>
   var D = null;                 // everything from the server
   var tab = 'overview';
   var guestFilter = { q: '', status: '' };
@@ -363,24 +358,10 @@ window.gifenc={GIFEncoder:ct,quantize:H,applyPalette:nt};})();
       '<input type="file" id="imgFile" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none"></label>' +
       (D.image ? '<button class="btn danger" id="imgRemove">Remove</button>' : '') + '</div>' +
       '<div class="hint">Your design, a photo or a logo. Wide pictures work best. It\'s resized to 1200 pixels wide to keep emails light.</div></div></div>';
-    h += '<div class="card" id="envCard"><h2>Email envelope</h2>' +
-      '<p class="hint" style="font-size:13px;margin-top:-6px">The invitation email opens with a short animation: a sealed envelope that opens, ' +
-      'and a card that slides out. Tapping it, or the button below it, opens the invitation website.</p>' +
-      '<div><div>' +
-      field('Envelope Text', 'Written on the envelope', 'text') +
-      field('Card Caption', 'Written on the card', 'text', '<code>{child}</code> fills in the name.') +
-      '<label class="f">The card shows</label><select data-key="Card Content">' +
-      [['both', 'Picture and caption'], ['picture', 'Picture only'], ['caption', 'Caption only']].map(function (o) {
-        return '<option value="' + o[0] + '"' + ((D.settings['Card Content'] || 'both') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
-      }).join('') + '</select>' +
-      '<div class="hint">Use "Picture only" if your picture already has the name on it.</div>' +
-      '<div class="row" style="margin-top:14px"><button class="btn" id="buildAnim">' + (D.animation ? 'Save and rebuild animation' : 'Save and build animation') + '</button></div>' +
-      '<div class="hint" id="animStatus"></div></div>' +
-      '<div style="margin-top:14px"><canvas id="animCanvas" width="560" height="440" style="width:100%;border-radius:8px;border:1px solid var(--line);background:#fff"></canvas>' +
-      '<div class="row" style="justify-content:center;margin-top:6px"><button class="btn ghost small" id="replayAnim">▶ Play</button></div></div></div></div>';
     h += '<div class="card" id="textCard"><h2>Text</h2>' +
       field('Invitation Heading', 'Small heading above the name', 'text', 'For example "Bar Mitzvah" or "Please join us for the Bar Mitzvah of".') +
       field('Child Name', 'Name', 'text') +
+      field('Envelope Text', 'Written on the envelope', 'text', 'The envelope that opens when guests visit the invitation website.') +
       field('Hosts', 'From (hosts)', 'text') +
       field('RSVP Deadline', 'Reply by', 'text', 'Written exactly as guests should see it.') +
       field('Website Message', 'Invitation website · words above the name', 'area', 'For example "Together with our family … invite you to celebrate the Bar Mitzvah of". <code>{hosts}</code> fills in.') +
@@ -427,207 +408,11 @@ window.gifenc={GIFEncoder:ct,quantize:H,applyPalette:nt};})();
     $('pvKind').onchange = function () { previewKind = this.value; loadPreview(); };
     $('pvFamily').onchange = function () { previewToken = this.value; loadPreview(); };
     $('saveText').onclick = function () { call('saveSettings', [collect($('textCard'))], 'Saving…', function () { toast('Saved.'); }); };
-    wireEnvelope();
     if ($('imgRemove')) $('imgRemove').onclick = function () { if (confirm('Remove the picture?')) call('removeImage', [], 'Removing…'); };
     $('imgFile').onchange = function () {
       var f = this.files[0];
       if (!f) return;
       resizeImage(f, 1200, function (dataUrl) { call('uploadImage', [dataUrl, f.name], 'Uploading picture…', function () { toast('Picture saved.'); }); });
-    };
-  }
-
-  /* ---------------------------------------------------- envelope animation */
-
-  function animInputs() {
-    var v = collect($('envCard'));
-    var caption = String(v['Card Caption'] || '').replace(/\{child\}/g, D.settings['Child Name'] || '').replace(/\{hosts\}/g, D.settings['Hosts'] || '');
-    return { envelope: v['Envelope Text'] || '', caption: caption, content: v['Card Content'] || 'both' };
-  }
-  function animKey(inp) {
-    return JSON.stringify([inp.envelope, inp.caption, inp.content, D.style.font, D.style.theme, D.imageId || '']);
-  }
-  function hexMix(hex, amt) {
-    var n = parseInt(hex.slice(1), 16), out = '#';
-    [16, 8, 0].forEach(function (sh) { var c = (n >> sh) & 255; out += ('0' + Math.round(c + (255 - c) * amt).toString(16)).slice(-2); });
-    return out;
-  }
-  function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
-  function lerp(a, b, t) { return a + (b - a) * t; }
-
-  /** Loads what the drawing needs (fonts, picture) and returns a function that draws one moment of the animation. */
-  function prepareAnimation(inp, cb) {
-    var st = D.style, img = null;
-    var waits = [
-      document.fonts.load('48px ' + st.display, inp.envelope + inp.caption).catch(function () {}),
-      document.fonts.load('600 20px ' + st.body).catch(function () {})
-    ];
-    if (D.image && inp.content !== 'caption') {
-      waits.push(new Promise(function (res) { var i = new Image(); i.onload = function () { img = i; res(); }; i.onerror = res; i.src = D.image; }));
-    }
-    Promise.all(waits).then(function () { cb(makeDrawer(inp, img)); });
-  }
-
-  function makeDrawer(inp, img) {
-    var st = D.style, W = 560, H = 440;
-    var ink = st.ink, accent = st.accent;
-    var paper = hexMix(accent, 0.86), back = hexMix(accent, 0.62), flapIn = hexMix(accent, 0.74), front = hexMix(accent, 0.9);
-    var E = { x: 80, y: 178, w: 400, h: 240 };
-    var cx = E.x + E.w / 2;
-    var CARD0 = { x: E.x + 22, y: E.y + 10, w: E.w - 44, h: 218 };
-    var CARD_FINAL = { x: 18, y: 18, w: W - 36, h: H - 36 };
-
-    function roundRect(x, c, r) {
-      x.beginPath();
-      x.moveTo(c.x + r, c.y); x.arcTo(c.x + c.w, c.y, c.x + c.w, c.y + c.h, r); x.arcTo(c.x + c.w, c.y + c.h, c.x, c.y + c.h, r);
-      x.arcTo(c.x, c.y + c.h, c.x, c.y, r); x.arcTo(c.x, c.y, c.x + c.w, c.y, r); x.closePath();
-    }
-    function fitText(x, text, font, maxW, size) {
-      do { x.font = size + 'px ' + font; size -= 1; } while (x.measureText(text).width > maxW && size > 10);
-    }
-    function card(x, c) {
-      x.save();
-      x.shadowColor = 'rgba(0,0,0,.18)'; x.shadowBlur = 18; x.shadowOffsetY = 6;
-      x.fillStyle = '#fff'; roundRect(x, c, 8); x.fill();
-      x.restore();
-      x.save(); roundRect(x, c, 8); x.clip();
-      var pad = Math.max(8, c.w * 0.03);
-      var showPic = img && inp.content !== 'caption', showCap = inp.content !== 'picture' || !img;
-      var capH = showPic && showCap ? c.h * 0.24 : showCap ? c.h : 0;
-      if (showPic) {
-        var box = { x: c.x + pad, y: c.y + pad, w: c.w - 2 * pad, h: c.h - 2 * pad - capH + (showCap ? pad * 0.5 : 0) };
-        var r = Math.max(box.w / img.width, box.h / img.height);
-        var sw = box.w / r, sh = box.h / r;
-        x.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, box.x, box.y, box.w, box.h);
-      }
-      if (showCap) {
-        var top = c.y + c.h - capH, mid = top + capH / 2;
-        x.fillStyle = ink; x.textAlign = 'center'; x.textBaseline = 'middle';
-        if (!showPic) {
-          x.strokeStyle = accent; x.lineWidth = 1;
-          roundRect(x, { x: c.x + pad, y: c.y + pad, w: c.w - 2 * pad, h: c.h - 2 * pad }, 4); x.stroke();
-        }
-        fitText(x, inp.caption, st.display, c.w - 4 * pad, Math.round((showPic ? capH * 0.5 : c.h * 0.17) * Math.min(st.displaySize, 1.3)));
-        x.fillText(inp.caption, c.x + c.w / 2, mid - (showPic ? 0 : c.h * 0.04));
-        if (!showPic) {
-          var ry = mid + c.h * 0.12, rw = c.w * 0.12;
-          x.strokeStyle = accent; x.beginPath(); x.moveTo(c.x + c.w / 2 - rw - 8, ry); x.lineTo(c.x + c.w / 2 - 8, ry);
-          x.moveTo(c.x + c.w / 2 + 8, ry); x.lineTo(c.x + c.w / 2 + rw + 8, ry); x.stroke();
-          x.fillStyle = accent; x.fillRect(c.x + c.w / 2 - 3, ry - 3, 6, 6);
-        }
-      }
-      x.restore();
-    }
-    function flap(x, p) {
-      var apex = lerp(E.y + E.h * 0.62, E.y - E.h * 0.5, p);
-      x.fillStyle = p < 0.5 ? paper : flapIn;
-      x.strokeStyle = hexMix(accent, 0.45); x.lineWidth = 1;
-      x.beginPath(); x.moveTo(E.x, E.y); x.lineTo(E.x + E.w, E.y); x.lineTo(cx, apex); x.closePath(); x.fill(); x.stroke();
-      return apex;
-    }
-    function pocket(x) {
-      x.fillStyle = front; x.strokeStyle = hexMix(accent, 0.45); x.lineWidth = 1;
-      x.beginPath();
-      x.moveTo(E.x, E.y); x.lineTo(cx, E.y + E.h * 0.64); x.lineTo(E.x + E.w, E.y);
-      x.lineTo(E.x + E.w, E.y + E.h); x.lineTo(E.x, E.y + E.h); x.closePath(); x.fill(); x.stroke();
-      x.beginPath(); x.moveTo(E.x, E.y + E.h); x.lineTo(cx, E.y + E.h * 0.64); x.lineTo(E.x + E.w, E.y + E.h); x.stroke();
-      x.fillStyle = ink; x.textAlign = 'center'; x.textBaseline = 'middle';
-      fitText(x, inp.envelope, st.display, E.w * 0.8, Math.round(34 * Math.min(st.displaySize, 1.3)));
-      x.fillText(inp.envelope, cx, E.y + E.h * 0.84);
-    }
-    function seal(x, apex, alpha) {
-      if (alpha <= 0) return;
-      x.save(); x.globalAlpha = alpha;
-      x.fillStyle = accent; x.beginPath(); x.arc(cx, apex, 22, 0, Math.PI * 2); x.fill();
-      x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 1.5; x.beginPath(); x.arc(cx, apex, 16, 0, Math.PI * 2); x.stroke();
-      x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.font = '22px ' + st.display; x.fillText((D.settings['Child Name'] || '').charAt(0), cx, apex + 1);
-      x.restore();
-    }
-
-    /** f: {open: 0..1, slide: 0..1, zoom: 0..1} */
-    return function draw(x, f) {
-      x.fillStyle = st.bg; x.fillRect(0, 0, W, H);
-      var drop = ease(f.zoom) * 120, fade = 1 - ease(f.zoom);
-      var c = {
-        x: CARD0.x, y: CARD0.y - ease(f.slide) * 168, w: CARD0.w, h: CARD0.h
-      };
-      x.save(); x.translate(0, drop); x.globalAlpha = fade;
-      x.fillStyle = back; roundRect(x, E, 6); x.fill();
-      if (f.open >= 0.5) flap(x, ease(f.open));
-      if (f.zoom === 0 && f.open >= 0.5) card(x, c);
-      pocket(x);
-      if (f.open < 0.5) { var apex = flap(x, ease(f.open)); seal(x, apex, 1 - f.open * 3); }
-      x.restore();
-      if (f.zoom > 0) {
-        var z = ease(f.zoom);
-        card(x, { x: lerp(c.x, CARD_FINAL.x, z), y: lerp(c.y, CARD_FINAL.y, z), w: lerp(c.w, CARD_FINAL.w, z), h: lerp(c.h, CARD_FINAL.h, z) });
-      }
-    };
-  }
-
-  function animFrames() {
-    var fr = [{ open: 0, slide: 0, zoom: 0, delay: 1500 }], i;
-    for (i = 1; i <= 8; i++) fr.push({ open: i / 8, slide: 0, zoom: 0, delay: 60 });
-    fr[fr.length - 1].delay = 250;
-    for (i = 1; i <= 11; i++) fr.push({ open: 1, slide: i / 11, zoom: 0, delay: 60 });
-    fr[fr.length - 1].delay = 350;
-    for (i = 1; i <= 10; i++) fr.push({ open: 1, slide: 1, zoom: i / 10, delay: 60 });
-    fr[fr.length - 1].delay = 10000;
-    return fr;
-  }
-
-  var animTimer = null;
-  function playPreview(draw) {
-    var ctx = $('animCanvas') && $('animCanvas').getContext('2d');
-    if (!ctx) return;
-    clearTimeout(animTimer);
-    var fr = animFrames(), i = 0;
-    (function step() {
-      if (!$('animCanvas')) return;
-      draw(ctx, fr[i]);
-      if (i < fr.length - 1) animTimer = setTimeout(step, Math.min(fr[i].delay, 1500)), i++;
-    })();
-  }
-
-  function encodeGif(draw) {
-    var c = document.createElement('canvas'); c.width = 560; c.height = 440;
-    var x = c.getContext('2d', { willReadFrequently: true });
-    var g = window.gifenc, enc = g.GIFEncoder();
-    animFrames().forEach(function (f, n) {
-      draw(x, f);
-      var data = x.getImageData(0, 0, 560, 440).data;
-      var palette = g.quantize(data, 256);
-      enc.writeFrame(g.applyPalette(data, palette), 560, 440, n === 0 ? { palette: palette, delay: f.delay, repeat: -1 } : { palette: palette, delay: f.delay });
-    });
-    enc.finish();
-    var bytes = enc.bytes(), bin = '';
-    for (var i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-    return 'data:image/gif;base64,' + btoa(bin);
-  }
-
-  function wireEnvelope() {
-    var inp = animInputs();
-    var stale = !D.animation || D.animationKey !== animKey(inp);
-    $('animStatus').innerHTML = !D.animation ? 'Not built yet. Until it is, emails show your picture instead.'
-      : stale ? '<b style="color:var(--warn)">Out of date:</b> you changed the style, picture or wording since it was built.' : '✓ Up to date. This is what goes in the emails.';
-    prepareAnimation(inp, playPreview);
-    $('replayAnim').onclick = function () { prepareAnimation(animInputs(), playPreview); };
-    $('envCard').querySelectorAll('[data-key]').forEach(function (el) {
-      el.addEventListener('change', function () { prepareAnimation(animInputs(), playPreview); });
-    });
-    $('buildAnim').onclick = function () {
-      var vals = collect($('envCard'));
-      call('saveSettings', [vals], 'Saving…', function () {
-        var inp2 = animInputs();
-        $('busyText').textContent = 'Building the animation…'; $('busy').style.display = 'block';
-        prepareAnimation(inp2, function (draw) {
-          setTimeout(function () {
-            var gif;
-            try { gif = encodeGif(draw); } catch (e) { $('busy').style.display = 'none'; toast('Couldn\'t build the animation: ' + e.message, true); return; }
-            call('uploadAnimation', [gif, animKey(inp2)], 'Saving the animation (' + Math.round(gif.length * 0.75 / 1024) + ' KB)…', function () { toast('Animation saved. It\'s in the preview on the right.'); });
-          }, 30);
-        });
-      });
     };
   }
 
