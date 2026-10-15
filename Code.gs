@@ -463,7 +463,7 @@ function buildEmail_(kind, guest, s, events, url, media) {
     '<td style="width:44px;border-top:1px solid ' + st.accent + '"></td></tr></table>';
 
   if (kind !== 'confirm') {
-    return { subject: subject, text: simpleText_(intro, url), html: simpleEmail_(s, st, intro, url, media) };
+    return { subject: subject, text: simpleText_(intro, url, mine), html: simpleEmail_(s, st, intro, url, media, mine) };
   }
   var imgSrc = media.picture;
   var html =
@@ -498,20 +498,29 @@ function letterParts_(intro) {
   var signoff = paras.length > 2 ? paras.pop() : '';
   return { body: paras, signoff: signoff };
 }
-function simpleEmail_(s, st, intro, url, media) {
+function simpleEmail_(s, st, intro, url, media, events) {
   var parts = letterParts_(intro);
   var p = function (t) { return '<p style="margin:0 0 16px">' + esc_(t).replace(/\n/g, '<br>') + '</p>'; };
+  // The family's sub-events, written out: useful to guests, and it keeps the email from
+  // being "mostly picture", which spam filters penalise.
+  var list = (events || []).length ? '<p style="margin:0 0 6px">' + 'We hope you can join us for:' + '</p>' +
+    '<ul style="margin:0 0 16px;padding-left:22px">' + events.map(function (ev) {
+      return '<li style="margin:0 0 8px"><b>' + esc_(ev.name) + '</b>' + [ev.when, ev.where].filter(String).map(function (t) { return '<br>' + esc_(t); }).join('') + '</li>';
+    }).join('') + '</ul>' : '';
   return '<div style="font-family:Georgia,\'Times New Roman\',serif;font-size:16px;line-height:1.6;color:#222;max-width:560px">' +
-    (media.picture && isTrue_(s['Picture In Email']) ? '<p style="margin:0 0 18px"><a href="' + esc_(url) + '"><img src="' + esc_(media.picture) + '" alt="' + esc_(s['Child Name'] + '\'s Bar Mitzvah') +
-      '" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:6px"></a></p>' : '') +
-    parts.body.map(p).join('') +
+    (media.picture && isTrue_(s['Picture In Email']) ? '<p style="margin:0 0 18px"><img src="' + esc_(media.picture) + '" alt="' + esc_(s['Child Name'] + '\'s Bar Mitzvah') +
+      '" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:6px"></p>' : '') +
+    parts.body.map(p).join('') + list +
     '<p style="margin:0 0 20px"><a href="' + esc_(url) + '" style="color:' + st.ink + ';font-weight:bold">Open your invitation and RSVP</a></p>' +
     (parts.signoff ? p(parts.signoff) : '') +
     '</div>';
 }
-function simpleText_(intro, url) {
+function simpleText_(intro, url, events) {
   var parts = letterParts_(intro);
-  return parts.body.join('\n\n') + '\n\nOpen your invitation and RSVP:\n' + url + (parts.signoff ? '\n\n' + parts.signoff : '') + '\n';
+  var list = (events || []).length ? '\n\nWe hope you can join us for:\n' + events.map(function (ev) {
+    return '- ' + ev.name + [ev.when, ev.where].filter(String).map(function (t) { return '\n  ' + t; }).join('');
+  }).join('\n') : '';
+  return parts.body.join('\n\n') + list + '\n\nOpen your invitation and RSVP:\n' + url + (parts.signoff ? '\n\n' + parts.signoff : '') + '\n';
 }
 
 function send_(to, mail, s) {
