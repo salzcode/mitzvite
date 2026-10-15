@@ -41,7 +41,30 @@ All the data lives in your Google Sheet, in tabs you can read and edit: **Settin
    Click **Deploy**, then open the new **Web app URL**. That's your dashboard, so **bookmark it**.
 7. In the dashboard, open **Email & settings**. Paste the RSVP page address from step 5 and the dashboard address from step 6, then click **Save**.
 
-> **When the code changes later:** paste in the new files, save, then go to **Deploy → Manage deployments**. For **each** of the two deployments, click ✏ **Edit → Version: New version → Deploy**. The addresses stay the same, so links you already sent keep working. Don't use "New deployment", because that creates new addresses.
+> **When the code changes later:** paste in the new files, save, then go to **Deploy → Manage deployments**. For **each** of the two deployments, click ✏ **Edit → Version: New version → Deploy**. The addresses stay the same, so links you already sent keep working. Don't use "New deployment", because that creates new addresses. Or set up automatic updates once (below) and skip all of this.
+
+### Automatic updates from GitHub (optional, one time)
+
+Once this is set up, every change pushed to this repository's `main` branch goes straight into your Apps Script project, and both deployments move to the new version on their own. No more pasting.
+
+1. Go to <https://script.google.com/home/usersettings> and turn **Google Apps Script API** on.
+2. On your computer, install [Node.js](https://nodejs.org) (the LTS version) if you don't have it. Open a terminal and run:
+
+   ```
+   npx @google/clasp@2.4.2 login
+   ```
+
+   A browser window opens. Sign in with the **same Google account that owns the sheet** and click **Allow**.
+3. That command saved a file called `.clasprc.json` in your home folder (on a Mac: `cat ~/.clasprc.json` in the terminal shows it; on Windows it's in `C:\Users\<you>\`). Copy its whole contents.
+4. In the Apps Script editor, open ⚙ **Project Settings** and copy the **Script ID**.
+5. On GitHub, open this repository's **Settings → Secrets and variables → Actions → New repository secret** and add two secrets:
+   - `CLASPRC_JSON`: the contents of `.clasprc.json`
+   - `SCRIPT_ID`: the Script ID
+6. Open the **Actions** tab, pick **Deploy to Apps Script**, and click **Run workflow** to try it. A green tick means your script is up to date.
+
+> `.clasprc.json` lets whoever has it change your Apps Script projects, so keep it only in GitHub's secrets and don't share it. To revoke it, remove "clasp" at <https://myaccount.google.com/permissions>.
+>
+> The automatic update keeps your web app open to **Anyone**, because guests need that for the RSVP page. Your dashboard deployment stays private anyway: the script only shows the dashboard, and only runs its functions, for the Google account that owns the sheet. Everyone else just sees the RSVP page's "couldn't find your invitation" message.
 
 ## 2. Set it up in the dashboard
 

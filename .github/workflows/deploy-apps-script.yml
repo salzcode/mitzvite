@@ -1,0 +1,66 @@
+# Copies Code.gs, Dashboard.html and Rsvp.html into your Apps Script project
+# and moves every web app deployment (the dashboard and the RSVP page) to the
+# new version, so the links you already sent keep working.
+#
+# Needs two repository secrets (see README, "Automatic updates from GitHub"):
+#   CLASPRC_JSON  the contents of ~/.clasprc.json after `clasp login`
+#   SCRIPT_ID     Apps Script → Project Settings → Script ID
+name: Deploy to Apps Script
+
+on:
+  push:
+    branches: [main]
+    paths: [Code.gs, Dashboard.html, Rsvp.html]
+  workflow_dispatch:
+
+concurrency: apps-script-deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install clasp
+        run: npm install -g @google/clasp@2.4.2
+
+      - name: Sign in
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ] || [ -z "$SCRIPT_ID" ]; then
+            echo "::error::Add the CLASPRC_JSON and SCRIPT_ID secrets first (see README)."
+            exit 1
+          fi
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+          mkdir -p "$RUNNER_TEMP/script"
+          printf '{"scriptId":"%s","rootDir":"."}' "$SCRIPT_ID" > "$RUNNER_TEMP/script/.clasp.json"
+
+      - name: Push the code
+        working-directory: ${{ runner.temp }}/script
+        run: |
+          # Keep the project's own manifest (time zone, permissions), but make
+          # sure the web app stays open to guests. The dashboard is still
+          # private: it only opens for the sheet's owner (isOwner_ in Code.gs).
+          clasp pull
+          find . -maxdepth 1 -type f ! -name .clasp.json ! -name appsscript.json -delete
+          jq '.webapp = {"access": "ANYONE_ANONYMOUS", "executeAs": "USER_DEPLOYING"}' \
+            appsscript.json > m.json && mv m.json appsscript.json
+          cp "$GITHUB_WORKSPACE/Code.gs" "$GITHUB_WORKSPACE/Dashboard.html" "$GITHUB_WORKSPACE/Rsvp.html" .
+          clasp push --force
+
+      - name: Update the deployments
+        working-directory: ${{ runner.temp }}/script
+        run: |
+          clasp deployments | grep -v '@HEAD' | grep '^- ' | while read -r _ id ver rest; do
+            desc="${rest#- }"
+            [ -n "$desc" ] || desc="Updated from GitHub"
+            echo "Updating $id ($desc)"
+            clasp deploy --deploymentId "$id" --description "$desc"
+          done
+          clasp deployments
