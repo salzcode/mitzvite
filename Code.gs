@@ -376,7 +376,7 @@ function rsvpUrl_(settings, token, preview) {
 
 function fill_(template, guest, s) {
   return String(template || '')
-    .replace(/\{greeting\}/g, guest.greeting)
+    .replace(/\{greeting\}/g, String(guest.greeting || '').replace(/[\s,;:]+$/, ''))
     .replace(/\{family\}/g, guest.family)
     .replace(/\{child\}/g, s['Child Name'])
     .replace(/\{hosts\}/g, s['Hosts'])
@@ -462,8 +462,7 @@ function buildEmail_(kind, guest, s, events, url, media) {
     '<td style="width:44px;border-top:1px solid ' + st.accent + '"></td></tr></table>';
 
   if (kind !== 'confirm') {
-    return { subject: subject, text: intro + '\n\nOpen your invitation: ' + url + '\n' + 'RSVP by ' + s['RSVP Deadline'] + '.\n',
-      html: simpleEmail_(s, st, intro, url, media) };
+    return { subject: subject, text: simpleText_(intro, url), html: simpleEmail_(s, st, intro, url, media) };
   }
   var imgSrc = media.picture;
   var html =
@@ -488,28 +487,30 @@ function buildEmail_(kind, guest, s, events, url, media) {
   return { subject: subject, text: text, html: html };
 }
 
-/** Invitation and reminder emails: the picture, the message and an "Open your invitation" button. */
+/**
+ * Invitation and reminder emails, written to look like a personal letter rather than a
+ * newsletter (that matters to spam filters): the picture, the message, and one plain link
+ * placed just before the sign-off.
+ */
+function letterParts_(intro) {
+  var paras = String(intro).split(/\n\s*\n/);
+  var signoff = paras.length > 2 ? paras.pop() : '';
+  return { body: paras, signoff: signoff };
+}
 function simpleEmail_(s, st, intro, url, media) {
-  var B = st.body, D = st.display;
-  var top;
-  if (media.picture) {
-    top = '<a href="' + esc_(url) + '"><img src="' + esc_(media.picture) + '" alt="' + esc_(s['Envelope Text']) + '" width="580" style="display:block;width:100%;max-width:580px;height:auto;border-radius:12px 12px 0 0"></a>';
-  } else {
-    top = '<div style="padding:40px 20px 6px;text-align:center;font-family:' + D + ';font-size:' + Math.round(38 * st.displaySize) + 'px;color:' + st.ink + '">' +
-      esc_(s['Envelope Text']) + '</div>';
-  }
-  return '<link href="' + esc_(st.fontsUrl) + '" rel="stylesheet">' +
-    '<div style="background:' + st.bg + ';padding:28px 10px;font-family:' + B + '">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid ' + mix_(st.accent, 0.65) + '">' +
-    '<tr><td style="padding:0">' + top + '</td></tr>' +
-    '<tr><td style="padding:28px 36px 8px;font-family:' + B + ';font-size:16px;line-height:1.7;color:#333;text-align:center">' +
-    esc_(intro).replace(/\n/g, '<br>') + '</td></tr>' +
-    '<tr><td style="padding:18px 24px 34px;text-align:center">' +
-    '<a href="' + esc_(url) + '" style="display:inline-block;background:' + st.ink + ';color:#ffffff;text-decoration:none;padding:15px 40px;border-radius:999px;font-family:' + B + ';font-size:16px;letter-spacing:1px">Open your invitation</a>' +
-    '<div style="margin-top:14px;font-family:' + B + ';color:#777;font-size:13px;font-style:italic">Kindly reply by ' + esc_(s['RSVP Deadline']) + '</div>' +
-    '</td></tr></table>' +
-    '<div style="max-width:580px;margin:14px auto 0;text-align:center;color:#999;font-size:11px;font-family:Arial,sans-serif">Button not working? Copy this link into your browser:<br>' +
-    '<span style="word-break:break-all">' + esc_(url) + '</span></div></div>';
+  var parts = letterParts_(intro);
+  var p = function (t) { return '<p style="margin:0 0 16px">' + esc_(t).replace(/\n/g, '<br>') + '</p>'; };
+  return '<div style="font-family:Georgia,\'Times New Roman\',serif;font-size:16px;line-height:1.6;color:#222;max-width:560px">' +
+    (media.picture ? '<p style="margin:0 0 18px"><a href="' + esc_(url) + '"><img src="' + esc_(media.picture) + '" alt="' + esc_(s['Child Name'] + '\'s Bar Mitzvah') +
+      '" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:6px"></a></p>' : '') +
+    parts.body.map(p).join('') +
+    '<p style="margin:0 0 20px"><a href="' + esc_(url) + '" style="color:' + st.ink + ';font-weight:bold">Open your invitation and RSVP</a></p>' +
+    (parts.signoff ? p(parts.signoff) : '') +
+    '</div>';
+}
+function simpleText_(intro, url) {
+  var parts = letterParts_(intro);
+  return parts.body.join('\n\n') + '\n\nOpen your invitation and RSVP:\n' + url + (parts.signoff ? '\n\n' + parts.signoff : '') + '\n';
 }
 
 function send_(to, mail, s) {
