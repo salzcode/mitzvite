@@ -278,6 +278,12 @@
       '<button class="btn" id="ovInvite">Send invitations to everyone not yet invited</button>' +
       '<button class="btn" id="ovRemind">Send reminders to everyone who hasn\'t replied</button>' +
       '</div>' +
+      '<h3 style="margin-top:18px">Or send them yourself from Gmail</h3>' +
+      '<p class="hint" style="font-size:13px">This puts each family\'s personal email in your Gmail <b>Drafts</b> folder. Open Gmail and press Send on each one, ' +
+      'so it goes out exactly like an email you wrote. Families are marked as invited once their draft has been sent.</p>' +
+      (D.draftsWaiting ? '<p><b>' + D.draftsWaiting + ' draft' + (D.draftsWaiting === 1 ? '' : 's') + ' waiting</b> in <a href="https://mail.google.com/mail/u/0/#drafts" target="_blank">your Gmail Drafts</a>.</p>' : '') +
+      '<div class="row"><button class="btn ghost" id="ovDraftInvite">Create invitation drafts in Gmail</button>' +
+      '<button class="btn ghost" id="ovDraftRemind">Create reminder drafts in Gmail</button></div>' +
       (D.testMode ? '<div class="row" style="margin-top:12px"><button class="btn danger small" id="ovReset">Clear test families\' replies and sent dates</button></div>' : '') +
       '</div>';
     var waiting = D.guests.filter(function (g) { return inScope(g) && g.inviteSent && !g.responded; });
@@ -307,6 +313,8 @@
       if (!confirm('Send the invitation three ways to:\n\n' + to + '\n\n(A) with the picture, (B) without it, (C) plain text only. Then see which reach the inbox.')) return;
       call('sendSpamTest', [], 'Sending…', function (msg) { if (typeof msg === 'string') toast(msg); });
     };
+    $('ovDraftInvite').onclick = function () { call('createDrafts', ['new'], 'Creating drafts…'); };
+    $('ovDraftRemind').onclick = function () { call('createDrafts', ['reminders'], 'Creating drafts…'); };
     $('ovInvite').onclick = function () { confirmAndSend('new'); };
     $('ovRemind').onclick = function () { confirmAndSend('reminders'); };
     if ($('ovReset')) $('ovReset').onclick = function () {

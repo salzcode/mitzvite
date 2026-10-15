@@ -564,6 +564,82 @@ function sendBatch_(kind, guests, data, s) {
 
 function inScope_(g, s) { return s.testMode ? g.test : !g.test; }
 
+/* ------------------------------------------------- Gmail drafts (send by hand) */
+
+/*
+ * Instead of the script sending, it can put each family's personalised email in your Gmail
+ * Drafts folder; you press Send on each one in Gmail, so it is an ordinary email from you.
+ * Pending drafts are remembered here, and once a draft has left the Drafts folder the family
+ * is marked as invited (or reminded).
+ */
+function pendingDrafts_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('PENDING_DRAFTS') || '{}'); } catch (e) { return {}; }
+}
+function savePendingDrafts_(p) { PropertiesService.getScriptProperties().setProperty('PENDING_DRAFTS', JSON.stringify(p)); }
+
+/** Marks families whose draft has been sent (or removed) from Gmail. Returns how many drafts are still waiting, and whether any rows changed. */
+function syncDrafts_(data) {
+  var pending = pendingDrafts_(), ids = Object.keys(pending);
+  if (!ids.length) return { waiting: 0, changed: false };
+  var live = {};
+  GmailApp.getDrafts().forEach(function (d) { live[d.getId()] = true; });
+  var changed = false, now = new Date();
+  ids.forEach(function (id) {
+    if (live[id]) return;
+    var p = pending[id], g = data.list.filter(function (x) { return x.token === p.token; })[0];
+    if (g) {
+      if (p.kind === 'invite') {
+        setCell_(data.sheet, data.hdr, g.row, COL.INVITE_SENT, now);
+        if (!g.responded) setCell_(data.sheet, data.hdr, g.row, COL.STATUS, STATUS.INVITED);
+      } else {
+        setCell_(data.sheet, data.hdr, g.row, COL.REMINDERS, g.reminders + 1);
+        setCell_(data.sheet, data.hdr, g.row, COL.LAST_REMINDER, now);
+      }
+      log_(p.kind === 'invite' ? 'Invitation' : 'Reminder', g, g.emails.join(', '), 'Sent by hand from Gmail Drafts');
+    }
+    delete pending[id]; changed = true;
+  });
+  if (changed) { savePendingDrafts_(pending); SpreadsheetApp.flush(); }
+  return { waiting: Object.keys(pending).length, changed: changed };
+}
+
+/** mode: 'new' or 'reminders'. Creates a Gmail draft for each family instead of sending. */
+function createDrafts(mode) {
+  requireOwner_();
+  var s = getSettings_(), data = readGuests_();
+  syncDrafts_(data);
+  data = readGuests_();
+  rsvpUrl_(s, 'x', false);
+  var pending = pendingDrafts_(), waiting = {};
+  Object.keys(pending).forEach(function (id) { waiting[pending[id].token] = true; });
+  var kind = mode === 'reminders' ? 'reminder' : 'invite';
+  var list = data.list.filter(function (g) {
+    return inScope_(g, s) && !waiting[g.token] && (kind === 'invite' ? !g.inviteSent : g.inviteSent && !g.responded);
+  });
+  if (!list.length) throw new Error('Nobody to write to.' + (s.testMode ? ' Test Mode is on, so only families marked Test are included.' : ''));
+  var media = media_(s, false), img = imageBlob_(s), made = 0, failed = [];
+  list.forEach(function (g) {
+    if (!g.emails.length) { failed.push(g.family + ' (no email)'); return; }
+    if (!eventsFor_(g, data.events).length) { failed.push(g.family + ' (not invited to any event)'); return; }
+    try {
+      var mail = buildEmail_(kind, g, s, data.events, rsvpUrl_(s, ensureToken_(data, g), false), media);
+      var opts = { htmlBody: mail.html, name: s['Email Sender Name'] || s['Hosts'] };
+      if (s['Reply-To Address']) opts.replyTo = s['Reply-To Address'];
+      if (s['Send From Alias']) opts.from = s['Send From Alias'];
+      if (img && mail.html.indexOf('cid:invite') !== -1) opts.inlineImages = { invite: img };
+      var d = GmailApp.createDraft(g.emails.join(','), mail.subject, mail.text, opts);
+      pending[d.getId()] = { token: g.token, kind: kind };
+      log_(kind === 'invite' ? 'Invitation' : 'Reminder', g, g.emails.join(', '), 'Draft created in Gmail');
+      made++;
+    } catch (err) { failed.push(g.family + ' (' + err.message + ')'); }
+  });
+  savePendingDrafts_(pending);
+  var d2 = getDashboard();
+  d2.notice = 'Created ' + made + ' draft' + (made === 1 ? '' : 's') + ' in your Gmail Drafts folder. Open each one and press Send.' +
+    (failed.length ? ' Problems: ' + failed.join('; ') + '.' : '');
+  return d2;
+}
+
 /* ------------------------------------------------------------ web pages */
 
 function doGet(e) {
@@ -753,6 +829,12 @@ function getDashboard() {
   var data = readGuests_();
   // Give every family a token so the dashboard can address rows reliably.
   data.list.forEach(function (g) { ensureToken_(data, g); });
+  var draftsWaiting = 0;
+  try {
+    var sync = syncDrafts_(data);
+    draftsWaiting = sync.waiting;
+    if (sync.changed) data = readGuests_();
+  } catch (e) { /* Gmail unavailable */ }
   var settings = {};
   EDITABLE_SETTINGS.forEach(function (k) { settings[k] = s[k]; });
   return {
@@ -769,6 +851,7 @@ function getDashboard() {
     guests: data.list.map(guestView_),
     stats: stats_(data, s),
     quota: MailApp.getRemainingDailyQuota(),
+    draftsWaiting: draftsWaiting,
     sheetUrl: ss_().getUrl(),
     owner: Session.getEffectiveUser().getEmail()
   };
