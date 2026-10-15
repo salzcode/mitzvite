@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Havi's Bar Mitzvah</title>
+  <script>
+    // Forwards each family's personal link (…/?t=CODE) to the invitation page, keeping their code.
+    var INVITATION = 'https://script.google.com/macros/s/AKfycbwKB0kOji_gggokxHDfaaYlLjczMaiy9gL8R3qvTORMAQrZOWsd0AKZw2YQkpjww8AfJg/exec';
+    var target = INVITATION + location.search;
+    location.replace(target);
+  </script>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center;
+           background: radial-gradient(ellipse at 50% 45%, #2c3a5c, #1f2a44 75%); color: #f3ead6; font: 18px/1.6 Georgia, serif; }
+    a { color: #e9d9b0; }
+    .name { font-size: 40px; color: #fff; margin: 6px 0 14px; }
+    .small { font-size: 14px; opacity: .8; }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="small">You're invited</div>
+    <div class="name">Havi's Bar Mitzvah</div>
+    <p class="small">Opening your invitation…<br>
+      <a id="go" href="#">Tap here if it doesn't open</a></p>
+  </div>
+  <script>document.getElementById('go').href = target;</script>
+</body>
+</html>

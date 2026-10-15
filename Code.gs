@@ -61,7 +61,7 @@ var SETTINGS_SPEC = [
   ['Email Sender Name', 'Sarah & David Cohen', 'The name guests see in their inbox.'],
   ['Send From Alias', '', 'Optional: a "Send mail as" address already set up in this Gmail account.'],
   ['Reply-To Address', '', 'Optional: where guests\' email replies go (default: this Gmail account).'],
-  ['RSVP Page URL', '', 'The Web app URL of the RSVP deployment (Who has access: Anyone). Ends in /exec.'],
+  ['RSVP Page URL', '', 'The address the email buttons link to: the Web app URL of the RSVP deployment (ends in /exec), or a page that forwards to it, such as https://salzcode.github.io/mitzvite/'],
   ['Dashboard URL', '', 'The Web app URL of the Dashboard deployment (Who has access: Only myself).'],
   ['Test Mode', 'TRUE', 'TRUE: bulk sends only go to families marked Test. Set to FALSE to go live.'],
   ['Test Inboxes', '', 'Comma-separated addresses for preview emails (Gmail, Outlook, Yahoo, iCloud, mail-tester.com...).']

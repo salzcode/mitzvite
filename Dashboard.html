@@ -686,7 +686,7 @@
       '<h3>Testing</h3>' +
       field('Test Inboxes', 'Test inboxes for previews', 'text', 'Addresses you control at Gmail, Outlook, Yahoo, iCloud… plus one from mail-tester.com for a spam score. Separate with commas.') +
       '<h3>Web addresses</h3>' +
-      field('RSVP Page URL', 'RSVP page address', 'text', 'The Web app URL of the deployment with <b>Who has access: Anyone</b>. Ends in /exec.') +
+      field('RSVP Page URL', 'RSVP page address', 'text', 'The Web app URL of the deployment with <b>Who has access: Anyone</b> (ends in /exec), or a page that forwards to it, like <code>https://salzcode.github.io/mitzvite/</code>.') +
       field('Dashboard URL', 'This dashboard\'s address', 'text', 'The Web app URL of the deployment with <b>Who has access: Only myself</b>. Used for the link in reply notifications and the Sheet\'s menu.') +
       '<div class="row" style="margin-top:16px"><button class="btn" id="saveSet">Save</button></div></div>' +
       '<div class="card"><h2>Account</h2><p>Emails are sent from <b>' + esc(D.owner) + '</b>. Gmail allows about <b>' + D.quota + '</b> more today.</p>' +
