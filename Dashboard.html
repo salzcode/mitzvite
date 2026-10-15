@@ -274,6 +274,7 @@
       'If the limit is reached partway, sending stops cleanly; press the same button tomorrow to continue.</p>' +
       '<div class="row">' +
       '<button class="btn ghost" id="ovPreview">Send preview to my test inboxes</button>' +
+      '<button class="btn ghost" id="ovSpam">Spam check: send 3 versions</button>' +
       '<button class="btn" id="ovInvite">Send invitations to everyone not yet invited</button>' +
       '<button class="btn" id="ovRemind">Send reminders to everyone who hasn\'t replied</button>' +
       '</div>' +
@@ -300,6 +301,11 @@
       var to = D.settings['Test Inboxes'] || D.owner;
       if (!confirm('Send a sample invitation and reminder to:\n\n' + to + '\n\nThe RSVP button in them opens a preview that doesn\'t save.')) return;
       call('sendPreviewEmails', [''], 'Sending previews…', function (msg) { if (typeof msg === 'string') toast(msg); });
+    };
+    $('ovSpam').onclick = function () {
+      var to = D.settings['Test Inboxes'] || D.owner;
+      if (!confirm('Send the invitation three ways to:\n\n' + to + '\n\n(A) with the picture, (B) without it, (C) plain text only. Then see which reach the inbox.')) return;
+      call('sendSpamTest', [], 'Sending…', function (msg) { if (typeof msg === 'string') toast(msg); });
     };
     $('ovInvite').onclick = function () { confirmAndSend('new'); };
     $('ovRemind').onclick = function () { confirmAndSend('reminders'); };

@@ -1013,6 +1013,40 @@ function sendPreviewEmails(token) {
     '. Check each inbox, and its Spam/Junk and Promotions folders.';
 }
 
+function withSetting_(s, key, value) {
+  var c = {};
+  for (var k in s) c[k] = s[k];
+  c[key] = value;
+  return c;
+}
+
+/**
+ * Spam check: sends the invitation three ways to the test inboxes, so you can see which
+ * version lands in the inbox: A with the picture, B without it, C as plain text only.
+ */
+function sendSpamTest() {
+  requireOwner_();
+  var s = getSettings_(), data = readGuests_();
+  var to = String(s['Test Inboxes'] || Session.getEffectiveUser().getEmail()).split(/[,;\s]+/).filter(String);
+  var g = data.list[0];
+  if (!g) throw new Error('Add at least one family first (it is used as the sample).');
+  if (MailApp.getRemainingDailyQuota() < to.length * 3) throw new Error('Not enough of today\'s email quota left for the test.');
+  var url = rsvpUrl_(s, ensureToken_(data, g), true);
+  var withPic = buildEmail_('invite', g, withSetting_(s, 'Picture In Email', 'TRUE'), data.events, url, media_(s, false));
+  var noPic = buildEmail_('invite', g, withSetting_(s, 'Picture In Email', 'FALSE'), data.events, url, {});
+  to.forEach(function (addr) {
+    send_(addr, { subject: withPic.subject + ' (A)', text: withPic.text, html: withPic.html }, s);
+    send_(addr, { subject: noPic.subject + ' (B)', text: noPic.text, html: noPic.html }, s);
+    var opts = { name: s['Email Sender Name'] || s['Hosts'] };
+    if (s['Reply-To Address']) opts.replyTo = s['Reply-To Address'];
+    if (s['Send From Alias']) opts.from = s['Send From Alias'];
+    GmailApp.sendEmail(addr, withPic.subject + ' (C)', noPic.text, opts);
+    log_('Spam test', g, addr, 'Sent A, B, C');
+  });
+  return 'Sent three versions to ' + to.join(', ') + ': (A) with the picture, (B) without it, (C) plain text. ' +
+    'Check which ones reach the inbox and which land in Spam.';
+}
+
 /** mode: 'new' (everyone in scope not yet invited), 'reminders', or a list of tokens. */
 function sendNow(mode) {
   requireOwner_();
