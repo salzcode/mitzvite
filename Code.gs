@@ -654,17 +654,29 @@ function createDrafts(mode) {
 function doGet(e) {
   var p = (e && e.parameter) || {};
   var token = str_(p.t);
+  // The invitation page hosted on GitHub asks for its data here, so guests never open a Google page.
+  if (p.api === 'model') return json_(rsvpModel_(token, p.preview === '1'));
   if (!token && isOwner_()) {
     return HtmlService.createTemplateFromFile('Dashboard').evaluate()
       .setTitle('Invitations dashboard')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
   }
   var s = getSettings_();
+  var t = HtmlService.createTemplateFromFile('Rsvp');
+  t.modelJson = JSON.stringify(rsvpModel_(token, p.preview === '1')).replace(/</g, '\\u003c');
+  return t.evaluate()
+    .setTitle(s['Child Name'] + "'s Bar Mitzvah · RSVP")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/** Everything the invitation page shows for one family (or a not-found page when the code is unknown). */
+function rsvpModel_(token, preview) {
+  var s = getSettings_();
   var data = readGuests_();
   var g = token ? data.list.filter(function (x) { return x.token === token; })[0] : null;
   var mine = g ? eventsFor_(g, data.events) : [];
-  var model = {
-    preview: p.preview === '1',
+  return {
+    preview: !!preview,
     heading: s['Invitation Heading'], child: s['Child Name'], hosts: s['Hosts'], deadline: s['RSVP Deadline'],
     image: imageDataUrl_(s),
     style: style_(s),
@@ -680,11 +692,21 @@ function doGet(e) {
     message: g ? g.message : '',
     replied: g ? !!g.responded : false
   };
-  var t = HtmlService.createTemplateFromFile('Rsvp');
-  t.modelJson = JSON.stringify(model).replace(/</g, '\\u003c');
-  return t.evaluate()
-    .setTitle(s['Child Name'] + "'s Bar Mitzvah · RSVP")
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Replies sent from the invitation page hosted on GitHub. Body: {token, answers, message} as text. */
+function doPost(e) {
+  try {
+    var b = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    submitRsvp(b.token, b.answers, b.message);
+    return json_({ ok: true });
+  } catch (err) {
+    return json_({ error: err.message || String(err) });
+  }
 }
 
 /** Called from the RSVP page. answers: {eventId: {attending: bool, count: n}, ...} */
